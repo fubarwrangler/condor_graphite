@@ -10,5 +10,26 @@ Environment Profile=
 Extra Arguments=
 Install Directory=
 
+[Launch]
+Launch Configurations=Launch Configuration 0
+
+[Launch][Launch Configuration 0]
+Configured Launch Modes=execute
+Configured Launchers=nativeAppLauncher
+Name=htcgread
+Type=Native Application
+
+[Launch][Launch Configuration 0][Data]
+Arguments=
+Dependencies=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x01\x00\x00\x00\x0b\x00\x00\x00\x00\x02\x00\x00\x00\x0c\x00h\x00t\x00c\x00c\x00g\x00r\x00\x00\x00\x10\x00h\x00t\x00c\x00g\x00r\x00e\x00a\x00d)
+Dependency Action=Build
+EnvironmentGroup=
+Executable=file:///home/willsk/git/condorstats/htccgr
+External Terminal=konsole --noclose --workdir %workdir -e %exe
+Project Target=htccgr,htcgread
+Use External Terminal=false
+Working Directory=
+isExecutable=false
+
 [Project]
 VersionControlSupport=kdevgit
