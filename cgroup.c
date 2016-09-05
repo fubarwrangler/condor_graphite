@@ -144,8 +144,6 @@ void get_procs_in_group(struct condor_group *g)
 	snprintf(path, sizeof(path), "%s%s/tasks", g->root_path, g->name);
 	printf("Reading path: %s\n", path);
 	g->num_tasks = read_num_tasks(path);
-
-	free(path);
 }
 
 void get_memory_stats(struct cgroup_controller *c, struct condor_group *g)
