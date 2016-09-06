@@ -9,20 +9,11 @@
 #include <libcgroup.h>
 #include <assert.h>
 
+#include "cgroup.h"
+
 #define CONDOR_ROOT_GROUP "condor"
 
-struct condor_group {
-	char name[192];
-	char root_path[256];
-	char slot_name[16];
-	uint32_t num_procs;
-	uint32_t num_tasks;
-	uint64_t cpu_shares;
-	uint64_t user_cpu_usage;
-	uint64_t sys_cpu_usage;
-	uint64_t rss_used;
-	uint64_t swap_used;
-} *groups = NULL;
+struct condor_group *groups = NULL;
 int n_groups = 0;
 
 
@@ -101,9 +92,9 @@ static int add_group(struct cgroup_file_info *info)
  */
 void get_condor_cgroups(const char *controller)
 {
+	struct cgroup_file_info info;
 	void *handle = NULL;
 	int level = -1;
-	struct cgroup_file_info info;
 	int ret;
 
 	ret = cgroup_walk_tree_begin(controller, CONDOR_ROOT_GROUP, 1,
@@ -115,10 +106,11 @@ void get_condor_cgroups(const char *controller)
 	}
 	while (ECGEOF != (ret = cgroup_walk_tree_next(0, &handle,
 							&info, level))) {
-		if(0 != ret)
+		if(0 != ret) {
 			goto fail_out;
-		else if(info.type == CGROUP_FILE_TYPE_DIR && info.depth == 1)
+		} else if(info.type == CGROUP_FILE_TYPE_DIR && info.depth == 1) {
 			add_group(&info);
+		}
 	}
 
 	cgroup_walk_tree_end(&handle);
@@ -269,7 +261,6 @@ void get_statistics()
 		_set_cgroup_int(cont, "cpu.shares", &g->cpu_shares);
 
 		/* CPU Usage stats */
-		cont = cgroup_get_controller(c, "cpuacct");
 		get_controller_stats("cpuacct", g, cgpath, &_populate_cpu_stat);
 		/* Divide by hz from _SC_CLK_TCK to get usage in seconds */
 		g->user_cpu_usage /= hz;
@@ -281,7 +272,8 @@ void get_statistics()
 		cgroup_free(&c);
 	}
 }
-
+//#define _DBG_CGROUP
+#ifdef _DBG_CGROUP
 void print_groups(void)
 {
 	struct condor_group *g = groups;
@@ -307,9 +299,14 @@ int main(
 		fprintf(stderr, "Error initalizing libcgroup: %s\n", cgroup_strerror(ret));
 		return 1;
 	}
-	get_condor_cgroups("cpu");
+	get_condor_cgroups("memory");
+	if(n_groups == 0)	{
+		fputs("No condor " CONDOR_ROOT_GROUP " groups found\n", stderr);
+		return 1;
+	}
 	get_statistics();
 	print_groups();
 	free(groups);
 	return 0;
 }
+#endif

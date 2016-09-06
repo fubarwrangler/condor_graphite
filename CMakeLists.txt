@@ -4,6 +4,10 @@ PROJECT(HTCGR)
 ADD_DEFINITIONS(-Wall -pedantic -Wextra)
 ADD_DEFINITIONS(-std=c99 -D_POSIX_C_SOURCE=200809L)
 ADD_EXECUTABLE(htcgread cgroup.c)
+ADD_EXECUTABLE(condor_cgroup_graphite cgroup.c graphite.c)
+TARGET_COMPILE_DEFINITIONS(htcgread PUBLIC "-D_DBG_CGROUP")
+INCLUDE_DIRECTORIES(".")
+
 FIND_LIBRARY(
     LIBCGROUP NAMES libcgroup cgroup
     PATHS /usr/local/ /usr/
