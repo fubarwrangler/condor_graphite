@@ -75,7 +75,7 @@ static int _send_metric(int fd, const char *name, const char *val_str)
 	len = strlen(str);
 
 	if(graphite_debug) {
-		puts(str);
+		printf("%s\n", str);
 		return 0;
 	}
 	if (send(fd, str, len, 0) != len) {

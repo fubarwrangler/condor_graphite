@@ -14,41 +14,68 @@ static char *root_ns = "htcondor.cgroups";
 static char *cgroup_name = "condor";
 static int debug = 0;
 
+
+static void *xmalloc(size_t n)
+{
+	void *p;
+
+	if((p = calloc(n, 1)) == NULL) {
+		fprintf(stderr, "calloc() failure for %lu bytes!?\n", n);
+		exit(EXIT_FAILURE);
+	}
+
+	return p;
+}
+
 static void send_group_metrics(struct condor_group *g, int fd)
 {
-	char base[256];
-	char metric[sizeof(base) + 64];
+	char *base;
+	char *metric;
 	char sanitized_host[sizeof(hostname)];
 	char *p = sanitized_host;
+	size_t b_len;
 
 	strcpy(sanitized_host, hostname);
 	do {
 		if(*p == '.') *p = '_';
 	} while(*p++);
 
-	snprintf(base, sizeof(base), "%s.%s.%s",
+	b_len = strlen(root_ns) +
+			strlen(sanitized_host) +
+			strlen(g->slot_name) +
+			4;
+	base = xmalloc( b_len );
+	metric = xmalloc(b_len + 32);
+
+	snprintf(base, b_len, "%s.%s.%s",
 		 root_ns, sanitized_host, g->slot_name);
 
-	sprintf(metric, "%s.cpu_shares", base);
+	snprintf(metric, b_len + 32, "%s.starttime", base);
+	graphite_send_uint(fd, metric, g->start_time);
+
+	snprintf(metric, b_len + 32, "%s.cpu_shares", base);
 	graphite_send_uint(fd, metric, g->cpu_shares);
 
-	sprintf(metric, "%s.tasks", base);
+	snprintf(metric, b_len + 32, "%s.tasks", base);
 	graphite_send_uint(fd, metric, g->num_tasks);
 
-	sprintf(metric, "%s.procs", base);
+	snprintf(metric, b_len + 32, "%s.procs", base);
 	graphite_send_uint(fd, metric, g->num_procs);
 
-	sprintf(metric, "%s.cpu_user", base);
+	snprintf(metric, b_len + 32, "%s.cpu_user", base);
 	graphite_send_uint(fd, metric, g->user_cpu_usage);
 
-	sprintf(metric, "%s.cpu_sys", base);
+	snprintf(metric, b_len + 32, "%s.cpu_sys", base);
 	graphite_send_uint(fd, metric, g->sys_cpu_usage);
 
-	sprintf(metric, "%s.rss", base);
+	snprintf(metric, b_len + 32, "%s.rss", base);
 	graphite_send_uint(fd, metric, g->rss_used);
 
-	sprintf(metric, "%s.swap", base);
+	snprintf(metric, b_len + 32, "%s.swap", base);
 	graphite_send_uint(fd, metric, g->swap_used);
+
+	free(base);
+	free(metric);
 }
 
 static int groupsort(const void *a, const void *b)
@@ -126,8 +153,7 @@ int main(int argc, char *argv[])
 
 	fd = graphite_connect(dest, port);
 
-
-	get_condor_cgroups("cpu", "condor");
+	get_condor_cgroups("cpu", cgroup_name);
 
 	if(n_groups == 0)	{
 		fputs("No condor cgroups groups found...exiting\n", stderr);

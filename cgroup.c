@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <errno.h>
+#include <sys/stat.h>
 #include <linux/limits.h>
 #include <libcgroup.h>
 #include <assert.h>
@@ -59,6 +60,7 @@ static int add_group(struct cgroup_file_info *info)
 		printf("Found already %s...\n", info->path);
 		return 0;
 	} else {
+		struct stat st;
 
 		if(NULL == (groups = realloc(groups,
 			(1 + n_groups) * sizeof(struct condor_group))) ) {
@@ -77,7 +79,8 @@ static int add_group(struct cgroup_file_info *info)
 
 		*(g->root_path + root_len) = '\0';
 		extract_slot_name(g->slot_name, info->path);
-
+		stat(info->full_path, &st);
+		g->start_time = st.st_ctime;
 		return 0;
 	}
 }
@@ -285,7 +288,8 @@ void print_groups(void)
 	struct condor_group *g = groups;
 
 	for(int i = 0; i < n_groups; i++, g = &groups[i])	{
-		printf("Group %d: %s\n", i, g->name);
+		printf("Group %d (created %ld): %s\n",
+		       i, g->start_time, g->name);
 		printf("\tSlotid: %s\n", g->slot_name);
 		printf("\tRSS: %lu\n\tSWAP: %lu\n", g->rss_used, g->swap_used);
 		printf("\tProcesses (threads): %d (%d)\n",
