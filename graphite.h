@@ -8,4 +8,6 @@ int graphite_send_uint(int fd, const char *metric, uint64_t value);
 int graphite_send_int(int fd, const char *metric, int64_t value);
 int graphite_send_float(int fd, const char *metric, float value);
 
+extern int graphite_debug;
+
 #endif

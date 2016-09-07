@@ -11,8 +11,6 @@
 
 #include "cgroup.h"
 
-#define CONDOR_ROOT_GROUP "condor"
-
 struct condor_group *groups = NULL;
 int n_groups = 0;
 
@@ -61,9 +59,7 @@ static int add_group(struct cgroup_file_info *info)
 		printf("Found already %s...\n", info->path);
 		return 0;
 	} else {
-		/* printf("Adding group (%d) %s -- %s\n",
-			   n_groups + 1, info->path, info->full_path);
-		*/
+
 		if(NULL == (groups = realloc(groups,
 			(1 + n_groups) * sizeof(struct condor_group))) ) {
 			fputs("!Realloc error on group struct", stderr);
@@ -90,34 +86,40 @@ static int add_group(struct cgroup_file_info *info)
 /* Walk through the children of the "condor" cgroup under one controller to
  * get the names of the current slot-cgroups and fill out group structure
  */
-void get_condor_cgroups(const char *controller)
+void get_condor_cgroups(const char *controller, const char *condor_cgroup)
 {
 	struct cgroup_file_info info;
 	void *handle = NULL;
 	int level = -1;
 	int ret;
 
-	ret = cgroup_walk_tree_begin(controller, CONDOR_ROOT_GROUP, 1,
-				     &handle, &info, &level);
-	if(0 != ret) {
-		goto fail_out;
-	} else if(info.type == CGROUP_FILE_TYPE_DIR && info.depth == 1) {
-		add_group(&info);
+	if((ret = cgroup_init()) != 0) {
+		fprintf(stderr, "Error initalizing libcgroup: %s\n",
+			cgroup_strerror(ret));
+		exit(EXIT_FAILURE);
 	}
+
+	ret = cgroup_walk_tree_begin(controller, condor_cgroup, 1,
+				     &handle, &info, &level);
+	if(ret != 0)
+		goto fail_out;
+	if(info.type == CGROUP_FILE_TYPE_DIR && info.depth == 1)
+		add_group(&info);
+
 	while (ECGEOF != (ret = cgroup_walk_tree_next(0, &handle,
 							&info, level))) {
-		if(0 != ret) {
+		if(ret != 0)
 			goto fail_out;
-		} else if(info.type == CGROUP_FILE_TYPE_DIR && info.depth == 1) {
+		if(info.type == CGROUP_FILE_TYPE_DIR && info.depth == 1)
 			add_group(&info);
-		}
 	}
 
 	cgroup_walk_tree_end(&handle);
 	return;
 
 	fail_out:
-		fprintf(stderr, "Error walking controller: %s\n", controller);
+		fprintf(stderr, "Error walking controller: %s for %s\n",
+			controller, condor_cgroup);
 		exit(EXIT_FAILURE);
 }
 
@@ -188,7 +190,8 @@ inline static void _set_cgroup_int(struct cgroup_controller *c,
  * @pop_fn() takes stat and group arg, looks for key-value pairs to populate
  *           from the stat data, called once for each stat found
  */
-static void get_controller_stats(const char *controller, struct condor_group *g,
+static void get_controller_stats(const char *controller,
+				 struct condor_group *g,
 				 const char *path,
 				 void (*_pop_fn)(struct cgroup_stat *,
 						 struct condor_group *))
@@ -228,12 +231,12 @@ static void _populate_cpu_stat(struct cgroup_stat *s, struct condor_group *g)
 
 void get_cgroup_statistics()
 {
-	char cgpath[sizeof(((struct condor_group *)0)->name) + 16];
-	struct cgroup *c;
+	char cgpath[sizeof(((struct condor_group *)0)->name) + 16] = {0};
+	struct cgroup *c = NULL;
 	struct condor_group *g = NULL;
-	struct cgroup_controller *cont;
-	int ret;
+	struct cgroup_controller *cont = NULL;
 	long int hz = sysconf(_SC_CLK_TCK);
+	int ret;
 
 	assert(groups != NULL);
 
@@ -252,8 +255,10 @@ void get_cgroup_statistics()
 		/* Memory stats */
 		cont = cgroup_get_controller(c, "memory");
 		_set_cgroup_int(cont, "memory.usage_in_bytes", &g->rss_used);
+
 		/* NOTE: this param is sum of swap+rss */
-		_set_cgroup_int(cont, "memory.memsw.usage_in_bytes", &g->swap_used);
+		_set_cgroup_int(cont, "memory.memsw.usage_in_bytes",
+				&g->swap_used);
 		g->swap_used -= g->rss_used;
 
 		/* CPU Shares */
@@ -261,8 +266,9 @@ void get_cgroup_statistics()
 		_set_cgroup_int(cont, "cpu.shares", &g->cpu_shares);
 
 		/* CPU Usage stats */
-		get_controller_stats("cpuacct", g, cgpath, &_populate_cpu_stat);
-		/* Divide by hz from _SC_CLK_TCK to get usage in seconds */
+		get_controller_stats("cpuacct", g, cgpath,
+				     &_populate_cpu_stat);
+		/* Divide by HZ from _SC_CLK_TCK to get usage in seconds */
 		g->user_cpu_usage /= hz;
 		g->sys_cpu_usage /= hz;
 
@@ -282,26 +288,22 @@ void print_groups(void)
 		printf("Group %d: %s\n", i, g->name);
 		printf("\tSlotid: %s\n", g->slot_name);
 		printf("\tRSS: %lu\n\tSWAP: %lu\n", g->rss_used, g->swap_used);
-		printf("\tProcesses (threads): %d (%d)\n", g->num_procs, g->num_tasks);
+		printf("\tProcesses (threads): %d (%d)\n",
+			g->num_procs, g->num_tasks);
 		printf("\tCPU usage (%lu share): %lu user / %lu sys\n",
 			g->cpu_shares, g->user_cpu_usage, g->sys_cpu_usage);
 	}
 }
+#define CONDOR_GROUP "condor"
 
 int main(
 	int __attribute__((unused)) argc,
 	char __attribute__((unused)) *argv[]
 )
 {
-	int ret;
-
-	if((ret = cgroup_init()) != 0) {
-		fprintf(stderr, "Error initalizing libcgroup: %s\n", cgroup_strerror(ret));
-		return 1;
-	}
-	get_condor_cgroups("memory");
+	get_condor_cgroups("memory", CONDOR_GROUP);
 	if(n_groups == 0)	{
-		fputs("No condor " CONDOR_ROOT_GROUP " groups found\n", stderr);
+		fputs("No condor " CONDOR_GROUP " groups found\n", stderr);
 		return 1;
 	}
 	get_cgroup_statistics();

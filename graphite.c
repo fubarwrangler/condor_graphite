@@ -11,7 +11,8 @@
 
 #include "graphite.h"
 
-time_t _current_time = 0;
+static time_t _current_time = 0;
+int graphite_debug = 0;
 
 void graphite_init(void)
 {
@@ -22,7 +23,6 @@ int graphite_connect(const char *server, const char *port)
 {
 	struct addrinfo hints = {0};
 	struct addrinfo *result, *rp;
-	char port_str[16];
 	int sfd, s;
 
 	hints.ai_canonname = NULL;
@@ -31,10 +31,11 @@ int graphite_connect(const char *server, const char *port)
 	hints.ai_family = AF_UNSPEC;        /* Allows IPv4 or IPv6 */
 	hints.ai_socktype = SOCK_DGRAM;
 
-	s = getaddrinfo(server, port_str, &hints, &result);
+	s = getaddrinfo(server, port, &hints, &result);
 	if (s != 0) {
-		fprintf(stderr, "Error looking up %s:%s...exit\n", server, port);
-		return 0;
+		fprintf(stderr, "Error looking up %s:%s...exit\n",
+			server, port);
+		exit(EXIT_FAILURE);
 	}
 
 	/* Walk through returned list until we find an address structure
@@ -73,6 +74,10 @@ static int _send_metric(int fd, const char *name, const char *val_str)
 	snprintf(str, sizeof(str), "%s %s %ld", name, val_str, _current_time);
 	len = strlen(str);
 
+	if(graphite_debug) {
+		puts(str);
+		return 0;
+	}
 	if (send(fd, str, len, 0) != len) {
 		fprintf(stderr, "short / failed UDP send for %s\n", name);
 		return -1;
