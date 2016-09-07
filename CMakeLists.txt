@@ -4,7 +4,7 @@ PROJECT(HTCGR)
 ADD_DEFINITIONS(-Wall -pedantic -Wextra)
 ADD_DEFINITIONS(-std=c99 -D_POSIX_C_SOURCE=200809L)
 ADD_EXECUTABLE(htcgread cgroup.c)
-ADD_EXECUTABLE(condor_cgroup_graphite cgroup.c graphite.c)
+ADD_EXECUTABLE(condor_cg_graphite cgroup.c graphite.c main.c)
 TARGET_COMPILE_DEFINITIONS(htcgread PUBLIC "-D_DBG_CGROUP")
 INCLUDE_DIRECTORIES(".")
 
@@ -13,3 +13,4 @@ FIND_LIBRARY(
     PATHS /usr/local/ /usr/
 )
 TARGET_LINK_LIBRARIES( htcgread "${LIBCGROUP}" )
+TARGET_LINK_LIBRARIES( condor_cg_graphite "${LIBCGROUP}" )

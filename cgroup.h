@@ -1,3 +1,5 @@
+#ifndef _CCGROUP_H_
+#define _CCGROUP_H_
 
 struct condor_group {
 	char name[192];
@@ -14,3 +16,8 @@ struct condor_group {
 
 extern struct condor_group *groups;
 extern int n_groups;
+
+void get_condor_cgroups(const char *controller);
+void get_cgroup_statistics();
+
+#endif

@@ -226,7 +226,7 @@ static void _populate_cpu_stat(struct cgroup_stat *s, struct condor_group *g)
 	}
 }
 
-void get_statistics()
+void get_cgroup_statistics()
 {
 	char cgpath[sizeof(((struct condor_group *)0)->name) + 16];
 	struct cgroup *c;
@@ -304,7 +304,7 @@ int main(
 		fputs("No condor " CONDOR_ROOT_GROUP " groups found\n", stderr);
 		return 1;
 	}
-	get_statistics();
+	get_cgroup_statistics();
 	print_groups();
 	free(groups);
 	return 0;
