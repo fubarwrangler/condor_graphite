@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <errno.h>
+#include <syslog.h>
 #include <unistd.h>
 #include <assert.h>
 
@@ -17,6 +18,7 @@ int graphite_debug = 0;
 void graphite_init(void)
 {
 	_current_time = time(NULL);
+	openlog("graphite-lib", LOG_ODELAY | LOG_PID, LOG_DAEMON);
 }
 
 int graphite_connect(const char *server, const char *port)
@@ -76,6 +78,7 @@ static int _send_metric(int fd, const char *name, const char *val_str)
 
 	if(graphite_debug) {
 		printf("%s\n", str);
+// 		syslog(LOG_DEBUG, "%s", str);
 		return 0;
 	}
 	if (send(fd, str, len, 0) != len) {
@@ -90,6 +93,10 @@ static int _send_metric(int fd, const char *name, const char *val_str)
 int graphite_send_uint(int fd, const char *metric, uint64_t value)
 {
 	char s[VAL_BUF];
+	if(value & 0xff00000000000000)	{
+		syslog(LOG_ERR, "Really large int for graphite: %s = %lx (%lu)",
+		       metric, value, value);
+	}
 	snprintf(s, sizeof(s), "%lu", value);
 	return _send_metric(fd, metric, s);
 }

@@ -262,7 +262,14 @@ void get_cgroup_statistics()
 		/* NOTE: this param is sum of swap+rss */
 		_set_cgroup_int(cont, "memory.memsw.usage_in_bytes",
 				&g->swap_used);
-		g->swap_used -= g->rss_used;
+
+		/* NOTE: Occasional underflow! Probably because values are read
+		 * at slightly different times by libcgroup, so we sanity check.
+		 */
+		if(__glibc_unlikely(g->swap_used <= g->rss_used))
+			g->swap_used = 0;
+		else
+			g->swap_used -= g->rss_used;
 
 		/* CPU Shares */
 		cont = cgroup_get_controller(c, "cpu");

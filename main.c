@@ -91,7 +91,9 @@ static void usage(const char *progname)
 "GRAPHITE_DEST is either host:port or just host with port defaulting to the\n"
 "standard line-protocol port 2003\n\n"
 "Options:\n\t-c CGROUP: condor cgroup name (default %s)\n"
-"\t-p PATH: metric path prefix for graphite (default %s)\n"
+"\t-p PATH: metric path prefix for graphite (default %s)\n\n"
+"Flags:\n\t-d Debug mode: print metrics to screen and don't send to graphite\n"
+"\t-l Log to syslog the metrics gathered\n"
 "\t-h show this usage help\n\n",
 	progname, cgroup_name, root_ns);
 	exit(EXIT_FAILURE);
@@ -142,9 +144,10 @@ int main(int argc, char *argv[])
 		usage(argv[0]);
 
 	if((p = strchr(argv[optind], ':')) != NULL)	{
-		size_t hlen = p - argv[1];
+		size_t hlen = p - argv[optind];
 		port = p + 1;
-		strncpy(dest, argv[optind], MIN(hlen, sizeof(dest)));
+		strncpy(dest, argv[optind], hlen);
+		*(dest + hlen) = '\0';
 	} else {
 		strncpy(dest, argv[optind], sizeof(dest));
 	}
