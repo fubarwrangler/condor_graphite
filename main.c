@@ -159,8 +159,10 @@ int main(int argc, char *argv[])
 	get_condor_cgroups("cpu", cgroup_name);
 
 	if(n_groups == 0)	{
-		fputs("No condor cgroups groups found...exiting\n", stderr);
-		return 1;
+		if(debug) {
+			fputs("No condor cgroups groups found...exiting\n", stderr);
+		}
+		return 0;
 	}
 
 	qsort(groups, n_groups, sizeof(*groups), groupsort);
