@@ -144,12 +144,12 @@ int main(int argc, char *argv[])
 		usage(argv[0]);
 
 	if((p = strchr(argv[optind], ':')) != NULL)	{
-		size_t hlen = p - argv[optind];
+		size_t hlen = MIN(p - argv[optind], sizeof(dest)-1);
 		port = p + 1;
 		strncpy(dest, argv[optind], hlen);
 		*(dest + hlen) = '\0';
 	} else {
-		strncpy(dest, argv[optind], sizeof(dest));
+		strncpy(dest, argv[optind], sizeof(dest) - 1);
 	}
 
 	gethostname(hostname, sizeof(hostname));
