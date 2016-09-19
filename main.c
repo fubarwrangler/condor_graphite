@@ -108,8 +108,9 @@ static void usage(const char *progname)
 "Options:\n\t-c CGROUP: condor cgroup name (default %s)\n"
 "\t-p PATH: metric path prefix for graphite (default %s)\n\n"
 "Flags:\n\t-d Debug mode: print metrics to screen and don't send to graphite\n"
-"\t-l Log to syslog the metrics gathered\n"
-"\t-h show this usage help\n\n",
+"\t-t Use TCP connection instead of the default (UDP). All metrics will\n"
+"\t      be sent in one connection instead of 1 packet per metric\n"
+"\t-h show this help message\n\n",
 	progname, cgroup_name, root_ns);
 	exit(EXIT_FAILURE);
 }
@@ -121,8 +122,9 @@ int main(int argc, char *argv[])
 	char *p;
 	int fd;
 	int c;
+	int conn_class = GRAPHITE_UDP;
 
-	while ((c = getopt(argc, argv, "hdc:p:")) != -1) {
+	while ((c = getopt(argc, argv, "hdc:p:t")) != -1) {
 		switch (c) {
 		case 'd':
 			debug = 1;
@@ -136,6 +138,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'h':
 			usage(argv[0]);
+			break;
+		case 't':
+			conn_class = GRAPHITE_TCP;
 			break;
 		case '?':
 			if (optopt == 'p' || optopt == 'c')
@@ -169,6 +174,8 @@ int main(int argc, char *argv[])
 
 	gethostname(hostname, sizeof(hostname));
 
+	graphite_init(conn_class);
+
 	fd = graphite_connect(dest, port);
 
 	get_condor_cgroups("cpu", cgroup_name);
@@ -184,11 +191,10 @@ int main(int argc, char *argv[])
 
 	get_cgroup_statistics();
 
-	graphite_init();
 	for(int i = 0; i < n_groups; i++)	{
 		send_group_metrics(&groups[i], fd);
 	}
-	close(fd);
+	graphite_close(fd);
 	free(groups);
 	return 0;
 }

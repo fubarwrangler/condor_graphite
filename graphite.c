@@ -15,9 +15,14 @@
 static time_t _current_time = 0;
 int graphite_debug = 0;
 
-void graphite_init(void)
+static char buf[1024];
+static size_t buf_used = 0;
+static int _contype = 0;
+
+void graphite_init(int connection_type)
 {
 	_current_time = time(NULL);
+	_contype = connection_type;
 	openlog("graphite-lib", LOG_ODELAY | LOG_PID, LOG_DAEMON);
 }
 
@@ -31,7 +36,8 @@ int graphite_connect(const char *server, const char *port)
 	hints.ai_addr = NULL;
 	hints.ai_next = NULL;
 	hints.ai_family = AF_UNSPEC;        /* Allows IPv4 or IPv6 */
-	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_socktype = (_contype == GRAPHITE_TCP) ?
+			SOCK_STREAM : SOCK_DGRAM;
 
 	s = getaddrinfo(server, port, &hints, &result);
 	if (s != 0) {
@@ -57,12 +63,31 @@ int graphite_connect(const char *server, const char *port)
 	freeaddrinfo(result);
 
 	if (rp == NULL)	{
-		fprintf(stderr, "Error creating UDP socket to %s\n", server);
+		fprintf(stderr, "Error creating %s socket to %s\n",
+			(_contype == GRAPHITE_UDP) ? "UDP" : "TCP", server);
 		exit(EXIT_FAILURE);
 	}
 
 	return sfd;
 }
+
+static void send_buf(int fd)
+{
+	size_t sent = 0;
+	ssize_t this_send;
+
+// 	printf("Sending buffer (%zd)\n", buf_used);
+
+	while(sent < buf_used)	{
+		this_send = send(fd, buf + sent, buf_used - sent, 0);
+		if(this_send < 0)	{
+			fprintf(stderr, "send() error: %s", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+		sent += this_send;
+	}
+}
+
 
 static int _send_metric(int fd, const char *name, const char *val_str)
 {
@@ -73,20 +98,46 @@ static int _send_metric(int fd, const char *name, const char *val_str)
 	assert(_current_time > 0);
 
 	/* <metric.name.path> <value> <timestamp> */
-	snprintf(str, sizeof(str), "%s %s %ld", name, val_str, _current_time);
+	snprintf(str, sizeof(str), "%s %s %ld\n", name, val_str, _current_time);
 	len = strlen(str);
 
+	assert(len < (ssize_t)sizeof(buf) - 1);
+
 	if(graphite_debug) {
-		printf("%s\n", str);
+		printf("%s", str);
 // 		syslog(LOG_DEBUG, "%s", str);
-		return 0;
+//  		return 0;
 	}
-	if (send(fd, str, len, 0) != len) {
-		fprintf(stderr, "short / failed UDP send for %s\n", name);
-		return -1;
+
+	if(_contype == GRAPHITE_TCP)	{
+		if(buf_used + len >= sizeof(buf))	{
+// 			printf("Buf too large: flushing\n");
+			send_buf(fd);
+			buf_used = 0;
+		}
+		strncpy(buf + buf_used, str, len);
+		buf_used += len;
+// 		printf("buf_used: %zu (+%zd)\n", buf_used, len);
+	} else {
+		if (send(fd, str, len, 0) != len)	{
+			fprintf(stderr, "short / failed UDP send for %s\n", name);
+			return -1;
+		}
 	}
 	return 0;
 }
+
+
+void graphite_close(int fd)
+{
+	if(_contype == GRAPHITE_TCP && buf_used > 0)
+		send_buf(fd);
+	if (_contype == GRAPHITE_TCP && shutdown(fd, SHUT_RDWR) != 0)
+		perror("TCP Shutdown");
+	if(close(fd) < 0)
+		perror("Close fd");
+}
+
 
 #define VAL_BUF 24 /* 64-bit values go up to 10^19, so this should be enough */
 
