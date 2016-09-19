@@ -29,12 +29,19 @@ static void extract_slot_name(char *slot_name, const char *cgroup_name)
 	size_t i = 0;
 	char *p = strstr(cgroup_name, "slot");
 
-	assert(p != NULL);
+	if(p == NULL)	{
+		fprintf(stderr, "Invalid cgroup-name, needs 'slot' in it!\n");
+		exit(EXIT_FAILURE);
+	}
 
 	/* Run up to first '@' sign */
-	while(++p && *p != '@')
+	while(++p && *p != '@' && *p != '\0')
 		i++;
 
+	if(*p == '\0')	{
+		fprintf(stderr, "Invalid cgroup-name, should have @-sign!\n");
+		exit(EXIT_FAILURE);
+	}
 	/* Really!? This is the way to access a structure-member's size? */
 	strncpy(slot_name, (p - i - 1),
 		sizeof(((struct condor_group *)0)->slot_name));
@@ -263,10 +270,10 @@ void get_cgroup_statistics()
 		_set_cgroup_int(cont, "memory.memsw.usage_in_bytes",
 				&g->swap_used);
 
-		/* NOTE: Occasional underflow! Probably because values are read
-		 * at slightly different times by libcgroup, so we sanity check.
+		/* NOTE: underflow! Probably because values are read at
+		 * slightly different times by libcgroup, so we sanity check.
 		 */
-		if(__glibc_unlikely(g->swap_used <= g->rss_used))
+		if(g->swap_used <= g->rss_used)
 			g->swap_used = 0;
 		else
 			g->swap_used -= g->rss_used;
