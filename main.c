@@ -3,17 +3,18 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "graphite.h"
 #include "cgroup.h"
 
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
 static char hostname[256];
 static char *root_ns = "htcondor.cgroups";
 static char *cgroup_name = "condor";
 static int debug = 0;
 
+static inline int min(int a, int b) { return (a < b) ? a : b; }
 
 static void *xmalloc(size_t n)
 {
@@ -38,7 +39,7 @@ static void send_group_metrics(struct condor_group *g, int fd)
 	strcpy(sanitized_host, hostname);
 	do {
 		if(*p == '.') *p = '_';
-	} while(*p++);
+	} while(*++p);
 
 	b_len = strlen(root_ns) +
 			strlen(sanitized_host) +
@@ -144,7 +145,7 @@ int main(int argc, char *argv[])
 		usage(argv[0]);
 
 	if((p = strchr(argv[optind], ':')) != NULL)	{
-		size_t hlen = MIN(p - argv[optind], sizeof(dest)-1);
+		size_t hlen = min(p - argv[optind], sizeof(dest)-1);
 		port = p + 1;
 		strncpy(dest, argv[optind], hlen);
 		*(dest + hlen) = '\0';
