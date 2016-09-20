@@ -15,15 +15,21 @@
 static time_t _current_time = 0;
 int graphite_debug = 0;
 
-static char buf[1024];
+static char *buf;
 static size_t buf_used = 0;
 static int _contype = 0;
 
-void graphite_init(int connection_type)
+void graphite_init(enum graphite_contype ctype)
 {
 	_current_time = time(NULL);
-	_contype = connection_type;
+	_contype = ctype;
 	openlog("graphite-lib", LOG_ODELAY | LOG_PID, LOG_DAEMON);
+	if(_contype == GRAPHITE_TCP)	{
+		if((buf = calloc(1, GRAPHITE_BUFSIZE)) == NULL)	{
+			fprintf(stderr, "graphite_init: malloc failure\n");
+			exit(EXIT_FAILURE);
+		}
+	}
 }
 
 int graphite_connect(const char *server, const char *port)
@@ -70,25 +76,27 @@ int graphite_connect(const char *server, const char *port)
 
 	return sfd;
 }
-
+/* Sends buffer over TCP connections */
 static void send_buf(int fd)
 {
 	size_t sent = 0;
 	ssize_t this_send;
 
-// 	printf("Sending buffer (%zd)\n", buf_used);
-
 	while(sent < buf_used)	{
 		this_send = send(fd, buf + sent, buf_used - sent, 0);
-		if(this_send < 0)	{
+		if(this_send < 0 && errno != EINTR)	{
 			fprintf(stderr, "send() error: %s", strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 		sent += this_send;
 	}
+	buf_used = 0;
 }
 
-
+/**
+ * Construct the actual metric-string and either send over UDP or add to
+ * buffer to be send in bulk over TCP
+ */
 static int _send_metric(int fd, const char *name, const char *val_str)
 {
 	/* lengths + (generous)len of time + spaces + null */
@@ -101,26 +109,23 @@ static int _send_metric(int fd, const char *name, const char *val_str)
 	snprintf(str, sizeof(str), "%s %s %ld\n", name, val_str, _current_time);
 	len = strlen(str);
 
-	assert(len < (ssize_t)sizeof(buf) - 1);
 
 	if(graphite_debug) {
 		printf("%s", str);
-// 		syslog(LOG_DEBUG, "%s", str);
-//  		return 0;
+		return 0;
 	}
 
 	if(_contype == GRAPHITE_TCP)	{
-		if(buf_used + len >= sizeof(buf))	{
-// 			printf("Buf too large: flushing\n");
+		assert(len < (ssize_t)GRAPHITE_BUFSIZE - 1);
+		if(buf_used + len >= GRAPHITE_BUFSIZE)	{
 			send_buf(fd);
-			buf_used = 0;
 		}
 		strncpy(buf + buf_used, str, len);
 		buf_used += len;
-// 		printf("buf_used: %zu (+%zd)\n", buf_used, len);
 	} else {
 		if (send(fd, str, len, 0) != len)	{
-			fprintf(stderr, "short / failed UDP send for %s\n", name);
+			fprintf(stderr, "short / failed UDP send for %s\n"
+					"error: %s\n", name, strerror(errno));
 			return -1;
 		}
 	}
@@ -130,10 +135,14 @@ static int _send_metric(int fd, const char *name, const char *val_str)
 
 void graphite_close(int fd)
 {
-	if(_contype == GRAPHITE_TCP && buf_used > 0)
-		send_buf(fd);
-	if (_contype == GRAPHITE_TCP && shutdown(fd, SHUT_RDWR) != 0)
-		perror("TCP Shutdown");
+	if(_contype == GRAPHITE_TCP)	{
+		if(buf_used > 0)
+			send_buf(fd);
+		if (shutdown(fd, SHUT_RDWR) != 0)
+			perror("TCP Shutdown");
+		buf_used = 0;
+		free(buf);
+	}
 	if(close(fd) < 0)
 		perror("Close fd");
 }

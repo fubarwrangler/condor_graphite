@@ -44,7 +44,7 @@ static void extract_slot_name(char *slot_name, const char *cgroup_name)
 	}
 	/* Really!? This is the way to access a structure-member's size? */
 	strncpy(slot_name, (p - i - 1),
-		sizeof(((struct condor_group *)0)->slot_name));
+		sizeof(((struct condor_group *)0)->slot_name) - 1);
 	*(slot_name + i + 1) = '\0';
 }
 
@@ -58,6 +58,7 @@ static struct condor_group *find_group(const char *name)
 	}
 	return NULL;
 }
+
 
 static int add_group(struct cgroup_file_info *info)
 {
@@ -80,13 +81,18 @@ static int add_group(struct cgroup_file_info *info)
 		root_len = strlen(info->full_path) - strlen(info->path);
 
 		strncpy(g->name, info->path,
-			sizeof(((struct condor_group *)0)->name));
-		strncpy(g->root_path, info->full_path,
-			sizeof(((struct condor_group *)0)->root_path));
+			sizeof(((struct condor_group *)0)->name) - 1);
+		strncpy(g->root_path, info->full_path, root_len);
 
 		*(g->root_path + root_len) = '\0';
 		extract_slot_name(g->slot_name, info->path);
-		stat(info->full_path, &st);
+
+		if(stat(info->full_path, &st) < 0)	{
+			fprintf(stderr, "Error stat'ing cgroup %s: %s\n",
+				info->full_path, strerror(errno)
+			);
+			exit(EXIT_FAILURE);
+		}
 		g->start_time = st.st_ctime;
 		return 0;
 	}

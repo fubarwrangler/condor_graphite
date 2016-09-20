@@ -4,9 +4,9 @@
 #include <time.h>
 
 struct condor_group {
-	char name[192];
-	char root_path[248];
-	char slot_name[16];
+	char name[192];		/*!< Name of cgroup under root */
+	char root_path[56];	/*!< Path where cgroup is mounted */
+	char slot_name[16];	/*!< Extracted slot name */
 	uint32_t num_procs;
 	uint32_t num_tasks;
 	uint64_t cpu_shares;
