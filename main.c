@@ -80,13 +80,13 @@ static void send_group_metrics(struct condor_group *g, int fd)
 }
 
 /* These two functions are to numerically sort by the slot number in qsort */
-static inline unsigned int slot_to_int(const char *name)
+static inline uint16_t slot_to_int(const char *name)
 {
-	unsigned int n = 0;
+	uint16_t n = 0;
 
-	if(sscanf(name, "slot%*[0-9]_%u", &n) != 1)
+	if(sscanf(name, "slot%*[0-9]_%hu", &n) != 1)
 	{
-		if(sscanf(name, "slot_%u", &n) != 1)
+		if(sscanf(name, "slot_%hu", &n) != 1)
 		{
 			return 0;
 		}
@@ -95,8 +95,10 @@ static inline unsigned int slot_to_int(const char *name)
 }
 static int groupsort(const void *a, const void *b)
 {
-	return slot_to_int(((struct condor_group *)a)->slot_name) >
-	slot_to_int(((struct condor_group *)b)->slot_name) ? 1 : -1;
+	uint16_t i = slot_to_int(((struct condor_group *)a)->slot_name);
+	uint16_t j = slot_to_int(((struct condor_group *)b)->slot_name);
+
+	return (i > j) ? 1 : ((i < j) ? -1 : 0);
 }
 
 static void usage(const char *progname)
