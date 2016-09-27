@@ -31,6 +31,21 @@ Assumes that the condor-cgroup name is derived in a consistent manner, I'm not
 sure if this is a stable interface in the HTCondor source code (it may change
 one day?)
 
+## Installation
+```
+$ cmake .
+$ make
+```
+
+or 
+
+```
+$ cmake .
+$ make package
+```
+
+to get an RPM
+
 ## Ideas
 We should probably be able to talk to statsd as well as graphite if we'll be
 running frequently.
