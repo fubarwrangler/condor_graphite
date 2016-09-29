@@ -79,26 +79,12 @@ static void send_group_metrics(struct condor_group *g, int fd)
 	free(metric);
 }
 
-/* These two functions are to numerically sort by the slot number in qsort */
-static inline uint16_t slot_to_int(const char *name)
-{
-	uint16_t n = 0;
-
-	if(sscanf(name, "slot%*[0-9]_%hu", &n) != 1)
-	{
-		if(sscanf(name, "slot_%hu", &n) != 1)
-		{
-			return 0;
-		}
-	}
-	return n;
-}
 static int groupsort(const void *a, const void *b)
 {
-	uint16_t i = slot_to_int(((struct condor_group *)a)->slot_name);
-	uint16_t j = slot_to_int(((struct condor_group *)b)->slot_name);
+	int i = ((struct condor_group *)a)->sort_order;
+	int j = ((struct condor_group *)b)->sort_order;
 
-	return (i > j) ? 1 : ((i < j) ? -1 : 0);
+	return i - j;
 }
 
 static void usage(const char *progname)
@@ -184,7 +170,8 @@ int main(int argc, char *argv[])
 
 	if(n_groups == 0)	{
 		if(debug) {
-			fputs("No condor cgroups groups found...exiting\n", stderr);
+			fputs("No condor cgroups groups found...exiting\n",
+			      stderr);
 		}
 		return 0;
 	}

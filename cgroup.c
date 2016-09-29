@@ -49,6 +49,20 @@ static void extract_slot_name(char *slot_name, const char *cgroup_name)
 }
 
 
+static uint32_t get_slot_number(const char *slot)
+{
+	uint32_t a, b;
+	uint32_t n = 0;
+
+	if(sscanf(slot, "slot%u_%u", &a, &b) == 2)	{
+		n = (a & 0x0000ffff) << 16 | (b & 0x0000ffff);
+	} else if (sscanf(slot, "slot_%u", &a) != 1)	{
+		n = (a & 0x0000ffff) << 16;
+	}
+	return n;
+}
+
+
 /* TODO: These (find & add) could be made more efficient with a hash or tree */
 static struct condor_group *find_group(const char *name)
 {
@@ -86,6 +100,7 @@ static int add_group(struct cgroup_file_info *info)
 
 		*(g->root_path + root_len) = '\0';
 		extract_slot_name(g->slot_name, info->path);
+		g->sort_order = get_slot_number(g->slot_name);
 
 		if(stat(info->full_path, &st) < 0)	{
 			fprintf(stderr, "Error stat'ing cgroup %s: %s\n",
