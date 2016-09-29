@@ -7,8 +7,10 @@ ADD_DEFINITIONS(-std=c99 -D_POSIX_C_SOURCE=200809L)
 ADD_EXECUTABLE(testcg cgroup.c)
 ADD_LIBRARY(condor_metricslib STATIC cgroup.c graphite.c statsd.c util.c)
 
-ADD_EXECUTABLE(condor_cg_graphite condor_graphite.c)
-ADD_EXECUTABLE(condor_cg_statsd condor_statsd.c)
+ADD_EXECUTABLE(condor_cg_graphite condor_cg_main.c)
+ADD_EXECUTABLE(condor_cg_statsd condor_cg_main.c)
+TARGET_COMPILE_DEFINITIONS(condor_cg_graphite PUBLIC "-DUSE_GRAPHITE")
+TARGET_COMPILE_DEFINITIONS(condor_cg_statsd PUBLIC "-DUSE_STATSD")
 
 INCLUDE_DIRECTORIES(".")
 
