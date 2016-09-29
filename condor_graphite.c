@@ -7,7 +7,7 @@
 
 #include "graphite.h"
 #include "cgroup.h"
-
+#include "util.h"
 
 static char hostname[256];
 static char *root_ns = "htcondor.cgroups";
@@ -15,18 +15,6 @@ static char *cgroup_name = "condor";
 static int debug = 0;
 
 static inline int min(int a, int b) { return (a < b) ? a : b; }
-
-static void *xmalloc(size_t n)
-{
-	void *p;
-
-	if((p = calloc(n, 1)) == NULL) {
-		fprintf(stderr, "calloc() failure for %lu bytes!?\n", n);
-		exit(EXIT_FAILURE);
-	}
-
-	return p;
-}
 
 static void send_group_metrics(struct condor_group *g, int fd)
 {
@@ -45,8 +33,8 @@ static void send_group_metrics(struct condor_group *g, int fd)
 			strlen(sanitized_host) +
 			strlen(g->slot_name) +
 			4;
-	base = xmalloc( b_len );
-	metric = xmalloc(b_len + 32);
+	base = xcalloc( b_len );
+	metric = xcalloc(b_len + 32);
 
 	snprintf(base, b_len, "%s.%s.%s",
 		 root_ns, sanitized_host, g->slot_name);

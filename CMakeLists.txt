@@ -5,8 +5,10 @@ ADD_DEFINITIONS(-Wall -pedantic -Wextra)
 ADD_DEFINITIONS(-std=c99 -D_POSIX_C_SOURCE=200809L)
 
 ADD_EXECUTABLE(testcg cgroup.c)
+ADD_LIBRARY(condor_metricslib STATIC cgroup.c graphite.c statsd.c util.c)
 
-ADD_EXECUTABLE(condor_cg_graphite cgroup.c graphite.c main.c)
+ADD_EXECUTABLE(condor_cg_graphite condor_graphite.c)
+ADD_EXECUTABLE(condor_cg_statsd condor_statsd.c)
 
 INCLUDE_DIRECTORIES(".")
 
@@ -17,16 +19,20 @@ FIND_LIBRARY(
 TARGET_COMPILE_DEFINITIONS(testcg PUBLIC "-D_DBG_CGROUP")
 TARGET_LINK_LIBRARIES( testcg "${LIBCGROUP}" )
 
-TARGET_LINK_LIBRARIES( condor_cg_graphite "${LIBCGROUP}" )
+TARGET_LINK_LIBRARIES( condor_cg_graphite "${LIBCGROUP}" condor_metricslib)
+TARGET_LINK_LIBRARIES( condor_cg_statsd "${LIBCGROUP}" condor_metricslib)
 
 INSTALL(TARGETS condor_cg_graphite DESTINATION libexec/condor)
+INSTALL(TARGETS condor_cg_statsd DESTINATION libexec/condor)
 SET(CMAKE_INSTALL_PREFIX /usr)
 string (REGEX MATCH "\\.el[1-9]" os_version_suffix ${CMAKE_SYSTEM})
 
 SET(CPACK_GENERATOR "RPM")
 SET(CPACK_PACKAGE_NAME "condor-cg-graphite")
-SET(CPACK_PACKAGE_VERSION "1.0")
+SET(CPACK_PACKAGE_VERSION "1.1")
+SET(CPACK_RPM_PACKAGE_GROUP "Applications/System")
 SET(CPACK_RPM_PACKAGE_ARCHITECTURE "x86_64")
+SET(CPACK_RPM_PACKAGE_LICENSE "Apache License 2.0")
 SET(CPACK_PACKAGE_RELEASE 0)
 SET(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}${os_version_suffix}.${CMAKE_SYSTEM_PROCESSOR}")
 SET(CPACK_PACKAGE_VENDOR "RACF")

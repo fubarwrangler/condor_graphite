@@ -37,7 +37,7 @@ $ cmake .
 $ make
 ```
 
-or 
+or
 
 ```
 $ cmake .
@@ -47,9 +47,6 @@ $ make package
 to get an RPM
 
 ## Ideas
-We should probably be able to talk to statsd as well as graphite if we'll be
-running frequently.
-
 We may want to gather information about the job-owner and other attributes
 from each cgroup (how?)
 

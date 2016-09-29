@@ -2,6 +2,8 @@
 #define _GRAPHITE_H_
 #include <stdint.h>
 
+#include "util.h"
+
 enum graphite_contype {
 	GRAPHITE_TCP,
 	GRAPHITE_UDP
