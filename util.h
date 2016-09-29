@@ -20,7 +20,6 @@ void send_group_metrics(struct condor_group *g, const char *hostname,
 
 
 /* Safe malloc/calloc */
-#define xmalloc xcalloc
 void *xcalloc(size_t len);
 
 extern int debug;

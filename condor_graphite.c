@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
 	while ((c = getopt(argc, argv, "hdc:p:t")) != -1) {
 		switch (c) {
 		case 'd':
+			debug = 1;
 			break;
 		case 'c':
 			cgroup_name = optarg;
@@ -101,10 +102,9 @@ int main(int argc, char *argv[])
 		}
 		return 0;
 	}
+	get_cgroup_statistics();
 
 	qsort(groups, n_groups, sizeof(*groups), groupsort);
-
-	get_cgroup_statistics();
 
 	for(int i = 0; i < n_groups; i++)	{
 		send_group_metrics(&groups[i], hostname, root_ns, fd,

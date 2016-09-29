@@ -22,11 +22,14 @@ void send_group_metrics(struct condor_group *g, const char *hostname,
 {
 	char *base;
 	char *metric;
-	char sanitized_host[sizeof(hostname)];
-	char *p = sanitized_host;
+	char *sanitized_host;
+	char *p;
 	size_t b_len;
 
+	sanitized_host = xcalloc(strlen(hostname) + 1);
+
 	strcpy(sanitized_host, hostname);
+	p = sanitized_host;
 	do {
 		if(*p == '.') *p = '_';
 	} while(*++p);
@@ -40,6 +43,7 @@ void send_group_metrics(struct condor_group *g, const char *hostname,
 
 	snprintf(base, b_len, "%s.%s.%s",
 		 ns, sanitized_host, g->slot_name);
+	free(sanitized_host);
 
 	snprintf(metric, b_len + 32, "%s.starttime", base);
 	(*send_fn)(fd, metric, g->start_time);
@@ -75,7 +79,7 @@ int server_connect(const char *server, const char *port, int ai_socktype)
 	struct addrinfo *result, *rp;
 	int sfd, s;
 
-	if (ai_socktype != SOCK_STREAM || ai_socktype != SOCK_DGRAM)	{
+	if (ai_socktype != SOCK_STREAM && ai_socktype != SOCK_DGRAM)	{
 		fputs("BUG!: socket-type must be STREAM/DGRAM!\n", stderr);
 		exit(EXIT_FAILURE);
 	}
