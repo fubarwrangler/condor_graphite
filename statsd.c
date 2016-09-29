@@ -13,7 +13,6 @@
 
 #include "graphite.h"
 
-
 int statsd_connect(const char *server, const char *port)
 {
 	return server_connect(server, port, SOCK_DGRAM);
@@ -33,8 +32,6 @@ static char *_make_metric(const char *name, const char *val)
 
 	str = xcalloc(len);
 
-	assert(_current_time > 0);
-
 	/* <metric.name.path>:<value>|<type> */
 	snprintf(str, len, "%s:%s|c\n", name, val);
 
@@ -53,6 +50,13 @@ static int _send_metric(int fd, const char *m, const char *v)
 }
 
 #define VAL_BUF 24 /* 64-bit values go up to 10^19, so this should be enough */
+
+int statsd_send_uint(int fd, const char *metric, uint64_t value)
+{
+	char s[VAL_BUF];
+	snprintf(s, sizeof(s), "%ld", value);
+	return _send_metric(fd, metric, s);
+}
 
 int statsd_send_int(int fd, const char *metric, int value)
 {

@@ -14,7 +14,7 @@
 
 struct condor_group *groups = NULL;
 int n_groups = 0;
-
+const char *default_cgroup_name = "condor";
 
 /*
  * Get slot name from @cgroup_name under condor/ folder.
@@ -316,6 +316,15 @@ void get_cgroup_statistics()
 		cgroup_free(&c);
 	}
 }
+
+int groupsort(const void *a, const void *b)
+{
+	int i = ((struct condor_group *)a)->sort_order;
+	int j = ((struct condor_group *)b)->sort_order;
+
+	return i - j;
+}
+
 //#define _DBG_CGROUP
 #ifdef _DBG_CGROUP
 void print_groups(void)

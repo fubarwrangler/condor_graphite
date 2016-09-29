@@ -13,7 +13,6 @@
 #include "graphite.h"
 
 static time_t _current_time = 0;
-int graphite_debug = 0;
 
 static int (_contype) = 0;
 

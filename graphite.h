@@ -9,8 +9,6 @@ enum graphite_contype {
 	GRAPHITE_UDP
 };
 
-#define GRAPHITE_BUFSIZE 1280
-
 /**
  * Initilize graphite library and choose the connection type (see header)
  *
@@ -58,7 +56,5 @@ int graphite_send_float(int fd, const char *metric, float value);
  * @param[in] fd the socket-descripter returned by graphite connect
  */
 void graphite_close(int fd);
-
-extern int graphite_debug;
 
 #endif

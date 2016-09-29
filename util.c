@@ -8,12 +8,66 @@
 #include <errno.h>
 
 #include "util.h"
+#include "cgroup.h"
 
 #define BUFSIZE 1408
 
-int _u_debug = 0;
+int debug = 0;
 char buf[BUFSIZE];
 static size_t buf_used = 0;
+
+void send_group_metrics(struct condor_group *g, const char *hostname,
+			const char *ns, int fd,
+			int (*send_fn)(int, const char *, uint64_t))
+{
+	char *base;
+	char *metric;
+	char sanitized_host[sizeof(hostname)];
+	char *p = sanitized_host;
+	size_t b_len;
+
+	strcpy(sanitized_host, hostname);
+	do {
+		if(*p == '.') *p = '_';
+	} while(*++p);
+
+	b_len = strlen(ns) +
+			strlen(sanitized_host) +
+			strlen(g->slot_name) +
+			4;
+	base = xcalloc(b_len);
+	metric = xcalloc(b_len + 32);
+
+	snprintf(base, b_len, "%s.%s.%s",
+		 ns, sanitized_host, g->slot_name);
+
+	snprintf(metric, b_len + 32, "%s.starttime", base);
+	(*send_fn)(fd, metric, g->start_time);
+
+	snprintf(metric, b_len + 32, "%s.cpu_shares", base);
+	(*send_fn)(fd, metric, g->cpu_shares);
+
+	snprintf(metric, b_len + 32, "%s.tasks", base);
+	(*send_fn)(fd, metric, g->num_tasks);
+
+	snprintf(metric, b_len + 32, "%s.procs", base);
+	(*send_fn)(fd, metric, g->num_procs);
+
+	snprintf(metric, b_len + 32, "%s.cpu_user", base);
+	(*send_fn)(fd, metric, g->user_cpu_usage);
+
+	snprintf(metric, b_len + 32, "%s.cpu_sys", base);
+	(*send_fn)(fd, metric, g->sys_cpu_usage);
+
+	snprintf(metric, b_len + 32, "%s.rss", base);
+	(*send_fn)(fd, metric, g->rss_used);
+
+	snprintf(metric, b_len + 32, "%s.swap", base);
+	(*send_fn)(fd, metric, g->swap_used);
+
+	free(base);
+	free(metric);
+}
 
 int server_connect(const char *server, const char *port, int ai_socktype)
 {
@@ -89,7 +143,7 @@ int util_metric_send(int fd, const char *metric, bool buffer)
 {
 	ssize_t len = strlen(metric);
 
-	if(_u_debug) {
+	if(debug) {
 		printf("%s", metric);
 		return 0;
 	}
