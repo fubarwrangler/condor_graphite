@@ -2,14 +2,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <getopt.h>
 #include <unistd.h>
 #include <inttypes.h>
 
-#if USE_GRAPHITE
 #include "graphite.h"
-#elif USE_STATSD
 #include "statsd.h"
-#endif
 
 #include "cgroup.h"
 #include "util.h"
@@ -19,10 +17,15 @@ static char *root_ns = "htcondor.cgroups";
 
 static inline int min(int a, int b) { return (a < b) ? a : b; }
 
-static void usage(const char *progname)
+enum backend {
+	GRAPHITE,
+	STATSD,
+};
+
+static void usage(const char *progname, enum backend b)
 {
-	fprintf(stderr,
-#ifdef USE_GRAPHITE
+	if(b == GRAPHITE) {
+		fprintf(stderr,
 "Usage: %s [-p PATH] [-c CGROUP] GRAPHITE_DEST\n\n"
 "GRAPHITE_DEST is either host:port or just host with port defaulting to the\n"
 "standard line-protocol port 2003\n\n"
@@ -32,7 +35,10 @@ static void usage(const char *progname)
 "\t-t Use TCP connection instead of the default (UDP). All metrics will\n"
 "\t      be sent in one connection instead of 1 packet per metric\n"
 "\t-h show this help message\n\n",
-#elif USE_STATSD /* STATSD */
+		progname, default_cgroup_name, root_ns);
+
+	} else {
+		fprintf(stderr,
 "Usage: %s [-p PATH] [-c CGROUP] STATSD_HOST\n\n"
 "STATSD_HOST is either host:port or just host with port defaulting to the\n"
 "standard statsd port 8125\n\n"
@@ -40,8 +46,8 @@ static void usage(const char *progname)
 "\t-p PATH: metric path prefix for statsd (default %s)\n\n"
 "Flags:\n\t-d Debug mode: print metrics to screen and don't send to statsd\n"
 "\t-h show this help message\n\n",
-#endif
-	progname, default_cgroup_name, root_ns);
+		progname, default_cgroup_name, root_ns);
+	}
 	exit(EXIT_FAILURE);
 }
 
@@ -49,21 +55,17 @@ int main(int argc, char *argv[])
 {
 	char dest[128];
 	const char *cgroup_name = default_cgroup_name;
-#ifdef USE_GRAPHITE
 	char *port = "2003";
-#elif USE_STATSD
-	char *port = "8125";
-#endif
 	char *p;
 	int fd;
 	int c;
-#if USE_GRAPHITE
 	int conn_class = GRAPHITE_UDP;
+	enum backend mode;
 
-	while ((c = getopt(argc, argv, "hdc:p:t")) != -1) {
-#elif USE_STATSD
-	while ((c = getopt(argc, argv, "hdc:p:")) != -1) {
-#endif
+	mode = strstr(argv[0], "graphite") ? GRAPHITE : STATSD;
+
+	while ((c = getopt(argc, argv, (mode == GRAPHITE) ?
+					"hdc:p:t" : "htc:p:")) != -1) {
 		switch (c) {
 		case 'd':
 			debug = 1;
@@ -75,13 +77,11 @@ int main(int argc, char *argv[])
 			root_ns = optarg;
 			break;
 		case 'h':
-			usage(argv[0]);
+			usage(argv[0], mode);
 			break;
-#ifdef USE_GRAPHITE
 		case 't':
 			conn_class = GRAPHITE_TCP;
 			break;
-#endif
 		case '?':
 			if (optopt == 'p' || optopt == 'c')
 				fprintf (stderr,
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 	}
 
 	if(optind >= argc)
-		usage(argv[0]);
+		usage(argv[0], mode);
 
 	if((p = strchr(argv[optind], ':')) != NULL)	{
 		size_t hlen = min(p - argv[optind], sizeof(dest)-1);
@@ -113,12 +113,13 @@ int main(int argc, char *argv[])
 	}
 
 	gethostname(hostname, sizeof(hostname));
-#ifdef USE_GRAPHITE
-	graphite_init(conn_class);
-	fd = graphite_connect(dest, port);
-#elif USE_STATSD
-	fd = statsd_connect(dest, port);
-#endif
+	if(mode == GRAPHITE)	{
+		graphite_init(conn_class);
+		fd = graphite_connect(dest, port);
+	} else {
+		fd = statsd_connect(dest, port);
+	}
+
 
 	get_condor_cgroups("cpu", cgroup_name);
 
@@ -135,18 +136,17 @@ int main(int argc, char *argv[])
 
 	for(int i = 0; i < n_groups; i++)	{
 		send_group_metrics(&groups[i], hostname, root_ns, fd,
-#ifdef USE_GRAPHITE
-				   &graphite_send_uint);
-#elif USE_STATSD
-				   &statsd_send_uint);
-#endif
+			(mode == GRAPHITE) ?
+			&graphite_send_uint : &statsd_send_uint
+		);
 	}
 
-#ifdef USE_GRAPHITE
-	graphite_close(fd);
-#elif USE_STATSD
-	statsd_close(fd);
-#endif
+	if(mode == GRAPHITE) {
+		graphite_close(fd);
+	} else {
+		statsd_close(fd);
+	}
+
 	free(groups);
 	return 0;
 }

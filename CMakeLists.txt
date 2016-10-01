@@ -8,9 +8,10 @@ ADD_EXECUTABLE(testcg cgroup.c)
 ADD_LIBRARY(condor_metricslib STATIC cgroup.c graphite.c statsd.c util.c)
 
 ADD_EXECUTABLE(condor_cg_graphite condor_cg_main.c)
-ADD_EXECUTABLE(condor_cg_statsd condor_cg_main.c)
-TARGET_COMPILE_DEFINITIONS(condor_cg_graphite PUBLIC "-DUSE_GRAPHITE")
-TARGET_COMPILE_DEFINITIONS(condor_cg_statsd PUBLIC "-DUSE_STATSD")
+ADD_CUSTOM_TARGET(condor_cg_statsd ALL COMMAND
+	ln -sf condor_cg_graphite condor_cg_statsd
+	DEPENDS condor_cg_graphite)
+SET_PROPERTY(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES condor_cg_statsd )
 
 INCLUDE_DIRECTORIES(".")
 
@@ -22,12 +23,11 @@ TARGET_COMPILE_DEFINITIONS(testcg PUBLIC "-D_DBG_CGROUP")
 TARGET_LINK_LIBRARIES( testcg "${LIBCGROUP}" )
 
 TARGET_LINK_LIBRARIES( condor_cg_graphite "${LIBCGROUP}" condor_metricslib)
-TARGET_LINK_LIBRARIES( condor_cg_statsd "${LIBCGROUP}" condor_metricslib)
 
 INSTALL(TARGETS condor_cg_graphite DESTINATION libexec/condor)
-INSTALL(TARGETS condor_cg_statsd DESTINATION libexec/condor)
+INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/condor_cg_statsd DESTINATION libexec/condor)
 SET(CMAKE_INSTALL_PREFIX /usr)
-string (REGEX MATCH "\\.el[1-9]" os_version_suffix ${CMAKE_SYSTEM})
+STRING (REGEX MATCH "\\.el[1-9]" os_version_suffix ${CMAKE_SYSTEM})
 
 SET(CPACK_GENERATOR "RPM")
 SET(CPACK_PACKAGE_NAME "condor-cg-graphite")
