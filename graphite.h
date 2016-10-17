@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "util.h"
+#include "metrics.h"
 
 enum graphite_contype {
 	GRAPHITE_TCP,

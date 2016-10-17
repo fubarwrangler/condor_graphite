@@ -1,6 +1,8 @@
 #ifndef _STATSD_H
 #define _STATSD_H
+
 #include "util.h"
+#include "metrics.h"
 
 #define STATSD_BUFSIZE 1430
 

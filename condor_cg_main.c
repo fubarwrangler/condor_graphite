@@ -10,6 +10,7 @@
 #include "statsd.h"
 
 #include "cgroup.h"
+#include "metrics.h"
 #include "util.h"
 
 static char hostname[256];
@@ -62,10 +63,10 @@ int main(int argc, char *argv[])
 	int conn_class = GRAPHITE_UDP;
 	enum backend mode;
 
-	mode = strstr(argv[0], "graphite") ? GRAPHITE : STATSD;
+	mode = strstr(argv[0], "statsd") ? STATSD : GRAPHITE;
 
 	while ((c = getopt(argc, argv, (mode == GRAPHITE) ?
-					"hdc:p:t" : "htc:p:")) != -1) {
+					"hdc:p:t" : "hdc:p:")) != -1) {
 		switch (c) {
 		case 'd':
 			debug = 1;
