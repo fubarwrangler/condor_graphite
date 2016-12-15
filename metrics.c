@@ -73,6 +73,21 @@ void buf_close(int fd)
 	}
 }
 
+/**
+ * Sanitize hostname for metric inclusion (. -> _)
+ * WARNING: Returns new storage
+ */
+static char *sanitize_host(const char *host)
+{
+	char *q = xstrdup(host);
+	char *p = q;
+	do {
+		if(*p == '.')
+			*p = '_';
+	} while(*++p);
+	return q;
+}
+
 
 void send_group_metrics(struct condor_group *g, const char *hostname,
 			const char *ns, int fd,
@@ -80,17 +95,9 @@ void send_group_metrics(struct condor_group *g, const char *hostname,
 {
 	char *base;
 	char *metric;
-	char *sanitized_host;
 	char *p;
 	size_t b_len;
-
-	sanitized_host = xcalloc(strlen(hostname) + 1);
-
-	strcpy(sanitized_host, hostname);
-	p = sanitized_host;
-	do {
-		if(*p == '.') *p = '_';
-	} while(*++p);
+	char *sanitized_host = sanitize_host(hostname);
 
 	b_len = strlen(ns) +
 			strlen(sanitized_host) +

@@ -11,6 +11,7 @@ int server_connect(const char *server, const char *port, int ai_socktype);
 
 /* Safe malloc/calloc */
 void *xcalloc(size_t len);
+char *xstrdup(const char *s);
 
 extern int debug;
 

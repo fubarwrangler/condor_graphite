@@ -74,3 +74,13 @@ void *xcalloc(size_t len)
 
 	return p;
 }
+
+char *xstrdup(const char *s)
+{
+	char *n = strdup(s);
+	if(n == NULL)	{
+		fprintf(stderr, "util: strdup malloc failure\n");
+		exit(EXIT_FAILURE);
+	}
+	return n;
+}
