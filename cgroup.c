@@ -251,6 +251,17 @@ static void get_controller_stats(const char *controller,
 
 }
 
+static void _populate_memory_stat(struct cgroup_stat *s, struct condor_group *g)
+{
+	if(0 == strcmp(s->name, "total_rss"))	{
+		g->rss_used = parse_num(s->value);
+	} else if (0 == strcmp(s->name, "total_swap")) {
+		g->swap_used = parse_num(s->value);
+	} else if (0 == strcmp(s->name, "total_cache")) {
+		g->cache_used = parse_num(s->value);
+	}
+}
+
 
 static void _populate_cpu_stat(struct cgroup_stat *s, struct condor_group *g)
 {
@@ -285,20 +296,8 @@ void get_cgroup_statistics()
 			exit(EXIT_FAILURE);
 		}
 		/* Memory stats */
-		cont = cgroup_get_controller(c, "memory");
-		_set_cgroup_int(cont, "memory.usage_in_bytes", &g->rss_used);
-
-		/* NOTE: this param is sum of swap+rss */
-		_set_cgroup_int(cont, "memory.memsw.usage_in_bytes",
-				&g->swap_used);
-
-		/* NOTE: underflow! Probably because values are read at
-		 * slightly different times by libcgroup, so we sanity check.
-		 */
-		if(g->swap_used <= g->rss_used)
-			g->swap_used = 0;
-		else
-			g->swap_used -= g->rss_used;
+		get_controller_stats("memory", g, cgpath,
+				     &_populate_memory_stat);
 
 		/* CPU Shares */
 		cont = cgroup_get_controller(c, "cpu");
