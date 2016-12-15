@@ -95,7 +95,6 @@ void send_group_metrics(struct condor_group *g, const char *hostname,
 {
 	char *base;
 	char *metric;
-	char *p;
 	size_t b_len;
 	char *sanitized_host = sanitize_host(hostname);
 
