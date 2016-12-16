@@ -101,7 +101,6 @@ static int add_group(struct cgroup_file_info *info)
 		*(g->root_path + root_len) = '\0';
 		extract_slot_name(g->slot_name, info->path);
 		g->sort_order = get_slot_number(g->slot_name);
-		//printf("%s: 0x%08x\n", g->slot_name, g->sort_order);
 
 		if(stat(info->full_path, &st) < 0)	{
 			fprintf(stderr, "Error stat'ing cgroup %s: %s\n",

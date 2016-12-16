@@ -130,6 +130,9 @@ void send_group_metrics(struct condor_group *g, const char *hostname,
 	snprintf(metric, b_len + 32, "%s.rss", base);
 	(*send_fn)(fd, metric, g->rss_used);
 
+	snprintf(metric, b_len + 32, "%s.cache", base);
+	(*send_fn)(fd, metric, g->cache_used);
+
 	snprintf(metric, b_len + 32, "%s.swap", base);
 	(*send_fn)(fd, metric, g->swap_used);
 
