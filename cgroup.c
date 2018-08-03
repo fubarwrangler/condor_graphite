@@ -293,7 +293,7 @@ bool group_for_each(struct condor_group **g)
 	if(n >= n_groups)	{
 		return false;
 	} else	{
-		*g = &groups[n];
+		*g = &groups[n++];
 		return true;
 	}
 }
