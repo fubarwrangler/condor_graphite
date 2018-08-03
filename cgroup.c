@@ -14,7 +14,7 @@
 
 struct condor_group *groups = NULL;
 int n_groups = 0;
-const char *default_cgroup_name = "condor";
+const char *default_cgroup_name = "htcondor";
 
 /*
  * Get slot name from @cgroup_name under condor/ folder.
@@ -271,7 +271,7 @@ static void _populate_cpu_stat(struct cgroup_stat *s, struct condor_group *g)
 	}
 }
 
-void get_cgroup_statistics()
+void get_cgroup_statistics(const char *cgroup_name)
 {
 	char cgpath[sizeof(((struct condor_group *)0)->name) + 16] = {0};
 	struct cgroup *c = NULL;
@@ -284,7 +284,7 @@ void get_cgroup_statistics()
 
 	for(int i = 0; i < n_groups; i++)	{
 		g = &groups[i];
-		snprintf(cgpath, sizeof(cgpath), "condor/%s", g->name);
+		snprintf(cgpath, sizeof(cgpath), "%s/%s", cgroup_name, g->name);
 		if((c = cgroup_new_cgroup(cgpath)) == NULL)	{
 			fprintf(stderr, "CGroup error allocating %s\n",cgpath);
 			exit(EXIT_FAILURE);
@@ -341,7 +341,7 @@ void print_groups(void)
 			g->cpu_shares, g->user_cpu_usage, g->sys_cpu_usage);
 	}
 }
-#define CONDOR_GROUP "condor"
+#define CONDOR_GROUP "htcondor"
 
 int main(
 	int __attribute__((unused)) argc,
@@ -353,7 +353,7 @@ int main(
 		fputs("No condor " CONDOR_GROUP " groups found\n", stderr);
 		return 1;
 	}
-	get_cgroup_statistics();
+	get_cgroup_statistics(CONDOR_GROUP);
 	print_groups();
 	free(groups);
 	return 0;

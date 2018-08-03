@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
 		}
 		return 0;
 	}
-	get_cgroup_statistics();
+	get_cgroup_statistics(cgroup_name);
 
 	qsort(groups, n_groups, sizeof(*groups), groupsort);
 

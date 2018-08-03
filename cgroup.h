@@ -24,7 +24,7 @@ extern int n_groups;
 extern const char *default_cgroup_name;
 
 void get_condor_cgroups(const char *controller, const char *condor_cgroup);
-void get_cgroup_statistics();
+void get_cgroup_statistics(const char *cgroup_name);
 int groupsort(const void *a, const void *b);
 
 #endif
