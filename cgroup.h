@@ -2,10 +2,11 @@
 #define _CCGROUP_H_
 
 #include <time.h>
+#include <stdbool.h>
 
 struct condor_group {
-	char name[192];		/*!< Name of cgroup under root */
-	char root_path[56];	/*!< Path where cgroup is mounted */
+	char name[256];		/*!< Name of cgroup under root */
+	char root_path[60];	/*!< Path where cgroup is mounted */
 	char slot_name[16];	/*!< Extracted slot name */
 	uint32_t sort_order;
 	uint32_t num_procs;
@@ -19,12 +20,13 @@ struct condor_group {
 	time_t start_time;
 };
 
-extern struct condor_group *groups;
-extern int n_groups;
 extern const char *default_cgroup_name;
 
 void get_condor_cgroups(const char *controller, const char *condor_cgroup);
 void get_cgroup_statistics(const char *cgroup_name);
-int groupsort(const void *a, const void *b);
+
+bool group_for_each(struct condor_group **g);
+bool groups_empty(void);
+void cleanup_groups(void);
 
 #endif

@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
 
 	get_condor_cgroups("cpu", cgroup_name);
 
-	if(n_groups == 0)	{
+	if(groups_empty())	{
 		if(debug) {
 			fputs("No condor cgroups groups found...exiting\n",
 			      stderr);
@@ -133,10 +133,8 @@ int main(int argc, char *argv[])
 	}
 	get_cgroup_statistics(cgroup_name);
 
-	qsort(groups, n_groups, sizeof(*groups), groupsort);
-
-	for(int i = 0; i < n_groups; i++)	{
-		send_group_metrics(&groups[i], hostname, root_ns, fd,
+	for(struct condor_group *g = NULL; group_for_each(&g); /**/)	{
+		send_group_metrics(g, hostname, root_ns, fd,
 			(mode == GRAPHITE) ?
 			&graphite_send_uint : &statsd_send_uint
 		);
@@ -147,7 +145,6 @@ int main(int argc, char *argv[])
 	} else {
 		statsd_close(fd);
 	}
-
-	free(groups);
+	cleanup_groups();
 	return 0;
 }

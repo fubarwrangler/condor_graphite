@@ -12,8 +12,12 @@
 
 #include "cgroup.h"
 
-struct condor_group *groups = NULL;
-int n_groups = 0;
+/* Data structure is just an array of group structures */
+static struct condor_group *groups = NULL;
+
+/* Keep track of size of above */
+static int n_groups = 0;
+
 const char *default_cgroup_name = "htcondor";
 
 /*
@@ -114,6 +118,14 @@ static int add_group(struct cgroup_file_info *info)
 }
 
 
+static int groupsort(const void *a, const void *b)
+{
+	int i = ((struct condor_group *)a)->sort_order;
+	int j = ((struct condor_group *)b)->sort_order;
+
+	return i - j;
+}
+
 /* Walk through the children of the "condor" cgroup under one controller to
  * get the names of the current slot-cgroups and fill out group structure
  */
@@ -146,6 +158,9 @@ void get_condor_cgroups(const char *controller, const char *condor_cgroup)
 	}
 
 	cgroup_walk_tree_end(&handle);
+
+	qsort(groups, n_groups, sizeof(struct condor_group), groupsort);
+
 	return;
 
 	fail_out:
@@ -153,6 +168,13 @@ void get_condor_cgroups(const char *controller, const char *condor_cgroup)
 			controller, condor_cgroup);
 		exit(EXIT_FAILURE);
 }
+
+/* Return true if no groups found */
+bool groups_empty(void)
+{
+	return (n_groups == 0);
+}
+
 
 /* Get number fron string in a safe way (exit on failure) */
 static uint64_t parse_num(const char *str)
@@ -169,8 +191,9 @@ static uint64_t parse_num(const char *str)
 	return (uint64_t)n;
 }
 
-/* Get the number of tasks / pids in a cgroup from appropriate files @path
- * works by counting newlines in @path, since PIDs/tasks are on-per-line
+/**
+ * Get the number of tasks / pids in a cgroup from appropriate files @path
+ * works by counting newlines in @path, since PIDs/tasks are one-per-line
  */
 static int read_num_tasks(const char *path)
 {
@@ -216,7 +239,8 @@ inline static void _set_cgroup_int(struct cgroup_controller *c,
 	}
 }
 
-/* Reads statistics from <@controller>.stats file under given cgroup @g:
+/**
+ * Reads statistics from <@controller>.stats file under given cgroup @g:
  * @path is full-path of cgroup under main location
  * @pop_fn() takes stat and group arg, looks for key-value pairs to populate
  *           from the stat data, called once for each stat found
@@ -250,6 +274,30 @@ static void get_controller_stats(const char *controller,
 
 }
 
+/**
+ * Iterate through group-array without exposing underlying structure
+ * Call with address of pointer to groups @g initalized to NULL, then
+ * on each subsequent call where it returns True, @g points to the next group
+ *
+ * Return: true = valid group next, false = out of groups
+ */
+bool group_for_each(struct condor_group **g)
+{
+	static int n;
+
+	assert(g != NULL);
+
+	if(*g == NULL)
+		n = 0;
+
+	if(n >= n_groups)	{
+		return false;
+	} else	{
+		*g = &groups[n];
+		return true;
+	}
+}
+
 static void _populate_memory_stat(struct cgroup_stat *s, struct condor_group *g)
 {
 	if(0 == strcmp(s->name, "total_rss"))	{
@@ -275,15 +323,15 @@ void get_cgroup_statistics(const char *cgroup_name)
 {
 	char cgpath[sizeof(((struct condor_group *)0)->name) + 16] = {0};
 	struct cgroup *c = NULL;
-	struct condor_group *g = NULL;
+
 	struct cgroup_controller *cont = NULL;
 	long int hz = sysconf(_SC_CLK_TCK);
 	int ret;
 
 	assert(groups != NULL);
 
-	for(int i = 0; i < n_groups; i++)	{
-		g = &groups[i];
+	for(struct condor_group *g = NULL; group_for_each(&g); /*noop*/)	{
+
 		snprintf(cgpath, sizeof(cgpath), "%s/%s", cgroup_name, g->name);
 		if((c = cgroup_new_cgroup(cgpath)) == NULL)	{
 			fprintf(stderr, "CGroup error allocating %s\n",cgpath);
@@ -316,23 +364,23 @@ void get_cgroup_statistics(const char *cgroup_name)
 	}
 }
 
-int groupsort(const void *a, const void *b)
+void cleanup_groups()
 {
-	int i = ((struct condor_group *)a)->sort_order;
-	int j = ((struct condor_group *)b)->sort_order;
-
-	return i - j;
+	n_groups = 0;
+	if(groups)
+		free(groups);
 }
+
+
 
 //#define _DBG_CGROUP
 #ifdef _DBG_CGROUP
 void print_groups(void)
 {
-	struct condor_group *g = groups;
-
-	for(int i = 0; i < n_groups; i++, g = &groups[i])	{
+	int i = 0;
+	for(struct condor_group *g = NULL; group_for_each(&g); /* noop */)	{
 		printf("Group %d (created %ld): %s\n",
-		       i, g->start_time, g->name);
+		       i++, g->start_time, g->name);
 		printf("\tSlotid: %s\n", g->slot_name);
 		printf("\tRSS: %lu\n\tSWAP: %lu\n", g->rss_used, g->swap_used);
 		printf("\tProcesses (threads): %d (%d)\n",
@@ -349,7 +397,7 @@ int main(
 )
 {
 	get_condor_cgroups("memory", CONDOR_GROUP);
-	if(n_groups == 0)	{
+	if(groups_empty())	{
 		fputs("No condor " CONDOR_GROUP " groups found\n", stderr);
 		return 1;
 	}
