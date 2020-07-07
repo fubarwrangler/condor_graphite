@@ -9,6 +9,7 @@
 #include <linux/limits.h>
 #include <libcgroup.h>
 #include <assert.h>
+#include <mntent.h>
 
 #include "cgroup.h"
 
@@ -42,7 +43,7 @@ static void extract_slot_name(char *slot_name, const char *cgroup_name)
 	while(++p && *p != '@' && *p != '\0')
 		i++;
 
-	if(*p == '\0')	{
+	if(*p != '@')	{
 		fprintf(stderr, "Invalid cgroup-name, should have @-sign!\n");
 		exit(EXIT_FAILURE);
 	}
@@ -371,39 +372,43 @@ void cleanup_groups()
 		free(groups);
 }
 
+void _read_cpu_info(const char *path, struct condor_group *g)	{
+	return ;
+}
+
+void _read_memory_info(const char *path, struct condor_group *g)	{
+	return ;
+}
+
+struct _stats {
+	const char *name;
+	void (*_pop_fn)(const char *, struct condor_group *);
+} defs[] = { {"memory", _read_memory_info}, {"cpu", _read_cpu_info} };
+
+
+
 
 
 //#define _DBG_CGROUP
 #ifdef _DBG_CGROUP
-void print_groups(void)
-{
-	int i = 0;
-	for(struct condor_group *g = NULL; group_for_each(&g); /* noop */)	{
-		printf("Group %d (created %ld): %s\n",
-		       i++, g->start_time, g->name);
-		printf("\tSlotid: %s\n", g->slot_name);
-		printf("\tRSS: %lu\n\tSWAP: %lu\n", g->rss_used, g->swap_used);
-		printf("\tProcesses (threads): %d (%d)\n",
-			g->num_procs, g->num_tasks);
-		printf("\tCPU usage (%lu share): %lu user / %lu sys\n",
-			g->cpu_shares, g->user_cpu_usage, g->sys_cpu_usage);
-	}
-}
-#define CONDOR_GROUP "htcondor"
 
-int main(
-	int __attribute__((unused)) argc,
-	char __attribute__((unused)) *argv[]
-)
+
+int main(void)
 {
-	get_condor_cgroups("memory", CONDOR_GROUP);
-	if(groups_empty())	{
-		fputs("No condor " CONDOR_GROUP " groups found\n", stderr);
-		return 1;
+	FILE *fp = fopen("/etc/mtab", "r");
+	char *controllers[] = {"memory", "cpu", NULL};
+	struct mntent *m;
+	while( (m = getmntent(fp)) != NULL)	{
+		printf("%s %s (%s)\n", m->mnt_type, m->mnt_dir, m->mnt_opts);
+		for(char **p = controllers; *p; ++p)	{
+			if(hasmntopt(m, *p))	{
+				printf("\t-> has %s\n", *p);
+				break;
+			}
+		}
 	}
-	get_cgroup_statistics(CONDOR_GROUP);
-	print_groups();
-	free(groups);
+	fclose(fp);
 	return 0;
 }
+
 #endif

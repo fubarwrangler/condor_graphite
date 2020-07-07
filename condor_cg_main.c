@@ -114,10 +114,10 @@ int main(int argc, char *argv[])
 	}
 
 	gethostname(hostname, sizeof(hostname));
-	if(mode == GRAPHITE)	{
-		graphite_init(conn_class);
+	graphite_init(conn_class);
+	if(!debug && mode == GRAPHITE)	{
 		fd = graphite_connect(dest, port);
-	} else {
+	} else if (!debug) {
 		fd = statsd_connect(dest, port);
 	}
 

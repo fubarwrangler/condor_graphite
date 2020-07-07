@@ -5,6 +5,7 @@ ADD_DEFINITIONS(-Wall -pedantic -Wextra)
 ADD_DEFINITIONS(-std=c99 -D_POSIX_C_SOURCE=200809L)
 
 ADD_EXECUTABLE(testcg cgroup.c)
+
 ADD_EXECUTABLE(condor_cg_graphite condor_cg_main.c cgroup.c graphite.c
                                   statsd.c metrics.c util.c)
 ADD_CUSTOM_TARGET(condor_cg_statsd ALL COMMAND
