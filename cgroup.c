@@ -383,18 +383,34 @@ void _read_memory_info(const char *path, struct condor_group *g)	{
 
 }
 
-struct _stats {
+
+
+
+struct controller {
 	const char *name;
-	void (*_pop_fn)(const char *, struct condor_group *);
-} defs[] = { {"cpu", _read_cpu_info}, {"freezer", _read_memory_info} };
+	char *mount;
+	void (*pop_fn)(const char *, struct condor_group *);
+} controllers [] = {
+	{ .name = "cpu",	.pop_fn = _read_cpu_info},
+	{ .name = "memory",	.pop_fn = _read_memory_info}
+};
 
+#define NUM_CONTROLLERS sizeof(controllers)/sizeof(*controllers)
 
-const char **cgroup_paths(void)
+struct condor_cgroups {
+	const char *name;
+	struct condor_cgroups *next;
+};
+
+#define for_each_controller(cptr) \
+for (struct controller *cptr = controllers; cptr < (controllers + NUM_CONTROLLERS); ++cptr)
+
+void init_controller_paths(const char *path, struct condor_cgroups *ccg)
 {
 	FILE *fp;
-	char *controllers[] = {"cpu", "freezer", NULL};
-	static const char *dirs[sizeof(controllers)/sizeof(void *)] = {0};
+	DIR *dir;
 	struct mntent *m;
+	struct dirent *d;
 
 	if(NULL == (fp = fopen("/proc/mounts", "r")))	{
 		fprintf(stderr, "Error opening /proc/mounts\n");
@@ -402,16 +418,31 @@ const char **cgroup_paths(void)
 	}
 
 	while( (m = getmntent(fp)) != NULL)	{
-		if(strcmp(m->mnt_type, "cgroup"))
+		if(strcmp(m->mnt_type, "cgroup") != 0)
 			continue;
-		//printf("%s %s (%s)\n", m->mnt_type, m->mnt_dir, m->mnt_opts);
-		for(char **p = controllers; *p; ++p)	{
-			if(hasmntopt(m, *p))
-				dirs[p - controllers] = xstrdup(m->mnt_dir);
+		for_each_controller(c) {
+			if(hasmntopt(m, c->name))	{
+				c->mount = xcalloc(strlen(m->mnt_dir) + strlen(path) + 2);
+				sprintf(c->mount, "%s/%s", m->mnt_dir, path);
+			}
 		}
 	}
 	fclose(fp);
-	return dirs;
+
+	struct condor_cgroups **cgitr = ccg;
+	struct controller *c = &controllers[0];
+
+	dir = opendir(c->mount);
+	while(dir != NULL && (d = readdir(dir)) != NULL)	{
+		if(d->d_type == DT_DIR && d->d_name[0] != '.') {
+			*cgitr = xcalloc(sizeof(struct condor_cgroups));
+			(*cgitr)->next = NULL;
+			(*cgitr)->name = xstrdup(d->d_name);
+			printf("Add new group %s to %p\n", d->d_name, *cgitr);
+			cgitr = &(*cgitr)->next;
+		}
+	}
+	closedir(dir);
 
 }
 
@@ -423,22 +454,13 @@ const char **cgroup_paths(void)
 
 int main(void)
 {
-	char buf[128];
-	DIR *d;
-	struct dirent *dent;
+	struct condor_cgroups *cg;
 
-	const char **p = cgroup_paths();
-	for(size_t i = 0; i < sizeof(*defs) / sizeof(void *); i++)	{
-		sprintf(buf, "%s/htcondor", p[i]);
-		d = opendir(buf);
-		while(d != NULL && (dent = readdir(d)) != NULL)	{
-			if(dent->d_type == DT_DIR && dent->d_name[0] != '.') {
-				printf("%s %d\n", dent->d_name, dent->d_type== DT_DIR);
-			}
-		}
-		closedir(d);
+
+	init_controller_paths("htcondor", &cg);
+	for(struct condor_cgroups *p = cg; p != NULL; p = p->next)	{
+		printf("%s\n", p->name);
 	}
-
 	return 0;
 }
 
