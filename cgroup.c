@@ -10,8 +10,11 @@
 #include <libcgroup.h>
 #include <assert.h>
 #include <mntent.h>
+#include <sys/types.h>
+#include <dirent.h>
 
 #include "cgroup.h"
+#include "util.h"
 
 /* Data structure is just an array of group structures */
 static struct condor_group *groups = NULL;
@@ -377,37 +380,65 @@ void _read_cpu_info(const char *path, struct condor_group *g)	{
 }
 
 void _read_memory_info(const char *path, struct condor_group *g)	{
-	return ;
+
 }
 
 struct _stats {
 	const char *name;
 	void (*_pop_fn)(const char *, struct condor_group *);
-} defs[] = { {"memory", _read_memory_info}, {"cpu", _read_cpu_info} };
+} defs[] = { {"cpu", _read_cpu_info}, {"freezer", _read_memory_info} };
+
+
+const char **cgroup_paths(void)
+{
+	FILE *fp;
+	char *controllers[] = {"cpu", "freezer", NULL};
+	static const char *dirs[sizeof(controllers)/sizeof(void *)] = {0};
+	struct mntent *m;
+
+	if(NULL == (fp = fopen("/proc/mounts", "r")))	{
+		fprintf(stderr, "Error opening /proc/mounts\n");
+		exit(EXIT_FAILURE);
+	}
+
+	while( (m = getmntent(fp)) != NULL)	{
+		if(strcmp(m->mnt_type, "cgroup"))
+			continue;
+		//printf("%s %s (%s)\n", m->mnt_type, m->mnt_dir, m->mnt_opts);
+		for(char **p = controllers; *p; ++p)	{
+			if(hasmntopt(m, *p))
+				dirs[p - controllers] = xstrdup(m->mnt_dir);
+		}
+	}
+	fclose(fp);
+	return dirs;
+
+}
 
 
 
-
-
-//#define _DBG_CGROUP
+#define _DBG_CGROUP
 #ifdef _DBG_CGROUP
 
 
 int main(void)
 {
-	FILE *fp = fopen("/etc/mtab", "r");
-	char *controllers[] = {"memory", "cpu", NULL};
-	struct mntent *m;
-	while( (m = getmntent(fp)) != NULL)	{
-		printf("%s %s (%s)\n", m->mnt_type, m->mnt_dir, m->mnt_opts);
-		for(char **p = controllers; *p; ++p)	{
-			if(hasmntopt(m, *p))	{
-				printf("\t-> has %s\n", *p);
-				break;
+	char buf[128];
+	DIR *d;
+	struct dirent *dent;
+
+	const char **p = cgroup_paths();
+	for(size_t i = 0; i < sizeof(*defs) / sizeof(void *); i++)	{
+		sprintf(buf, "%s/htcondor", p[i]);
+		d = opendir(buf);
+		while(d != NULL && (dent = readdir(d)) != NULL)	{
+			if(dent->d_type == DT_DIR && dent->d_name[0] != '.') {
+				printf("%s %d\n", dent->d_name, dent->d_type== DT_DIR);
 			}
 		}
+		closedir(d);
 	}
-	fclose(fp);
+
 	return 0;
 }
 

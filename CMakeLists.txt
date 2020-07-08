@@ -2,9 +2,9 @@ PROJECT(condor_cgroup_graphite)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
 ADD_DEFINITIONS(-Wall -pedantic -Wextra)
-ADD_DEFINITIONS(-std=c99 -D_POSIX_C_SOURCE=200809L)
+ADD_DEFINITIONS(-std=c99 -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE)
 
-ADD_EXECUTABLE(testcg cgroup.c)
+ADD_EXECUTABLE(testcg cgroup.c util.c)
 
 ADD_EXECUTABLE(condor_cg_graphite condor_cg_main.c cgroup.c graphite.c
                                   statsd.c metrics.c util.c)
