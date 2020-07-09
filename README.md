@@ -18,14 +18,14 @@ GRAPHITE_HOST is either <hostname>:<port> or just <hostname> (with the port
 defaulting to the standard line-protocol port 2003)
 
 Options:
-	-c CGROUP: condor cgroup name (default condor)
+	-c CGROUP: condor cgroup name (default htcondor)
 	-p PATH: metric path prefix in graphite (default htcondor.cgroups)
 	-h show this usage help
 ```
 
 ## Issues and Limitations
-This software sends UDP packets (since non-pickle-protocol graphite is one
-metric per connection!!), so graphite must be configured accordingly.
+This software sends plaintext UDP or TCP packets to graphite, not
+pickle-protocol so graphite must be configured accordingly.
 
 Assumes that the condor-cgroup name is derived in a consistent manner, I'm not
 sure if this is a stable interface in the HTCondor source code (it may change

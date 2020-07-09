@@ -70,7 +70,7 @@ static int _send_metric(int fd, const char *m, const char *v)
 	return rv;
 }
 
-#define VAL_BUF 24 /* 64-bit values go up to 10^19, so this should be enough */
+#define VAL_BUF 32 /* 64-bit values go up to 10^19, so this should be enough */
 
 int graphite_send_uint(int fd, const char *metric, uint64_t value)
 {
