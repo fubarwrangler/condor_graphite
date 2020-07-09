@@ -115,14 +115,14 @@ int main(int argc, char *argv[])
 
 	gethostname(hostname, sizeof(hostname));
 	graphite_init(conn_class);
-	if(!debug && mode == GRAPHITE)	{
+	if(mode == GRAPHITE)	{
 		fd = graphite_connect(dest, port);
-	} else if (!debug) {
+	} else {
 		fd = statsd_connect(dest, port);
 	}
 
+	read_condor_cgroup_info(cgroup_name);
 
-	get_condor_cgroups("cpu", cgroup_name);
 
 	if(groups_empty())	{
 		if(debug) {
@@ -131,9 +131,8 @@ int main(int argc, char *argv[])
 		}
 		return 0;
 	}
-	get_cgroup_statistics(cgroup_name);
 
-	for(struct condor_group *g = NULL; group_for_each(&g); /**/)	{
+	for_each_group(g)	{
 		send_group_metrics(g, hostname, root_ns, fd,
 			(mode == GRAPHITE) ?
 			&graphite_send_uint : &statsd_send_uint

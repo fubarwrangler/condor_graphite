@@ -20,8 +20,9 @@ struct condor_group {
 
 extern const char *default_cgroup_name;
 
-void get_condor_cgroups(const char *controller, const char *condor_cgroup);
-void get_cgroup_statistics(const char *cgroup_name);
+#define for_each_group(g) for(struct condor_group *g = NULL; group_for_each(&g);)
+
+void read_condor_cgroup_info(const char *cg_name);
 
 bool group_for_each(struct condor_group **g);
 bool groups_empty(void);
