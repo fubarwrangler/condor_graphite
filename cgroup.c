@@ -23,6 +23,38 @@ static int n_groups = 0;
 
 const char *default_cgroup_name = "htcondor";
 
+typedef void (*read_fn)(const char *, struct condor_group *);
+
+/* Utility structures used only in this file's functions */
+struct found_groups {
+	char *name;
+	struct found_groups *next;
+};
+
+struct cgroup_stat {
+	char *name, *value;
+};
+
+/* Controllers to read and the functions to call on each path prototyped and
+ * defined here -- a static array of controllers we can iterate through below
+ */
+void read_cpu_group(const char *path, struct condor_group *g);
+void read_memory_group(const char *path, struct condor_group *g);
+
+struct controller {
+	const char *name;
+	char *mount;
+	read_fn populate;
+} controllers [] = {
+	{ .name = "cpu",	.populate = read_cpu_group},
+	{ .name = "memory",	.populate = read_memory_group},
+};
+
+#define NUM_CONTROLLERS sizeof(controllers)/sizeof(*controllers)
+
+#define for_each_controller(c) \
+for(struct controller *c = controllers; c < (controllers + NUM_CONTROLLERS); ++c)
+
 /*
  * Get slot name from @cgroup_name under condor/ folder.
  * format: "components_in_scratch_path_SLOTNAME@host"
@@ -156,10 +188,6 @@ void cleanup_groups()
 		free(groups);
 }
 
-struct cgroup_stat {
-	char *name, *value;
-};
-
 /* Iterate through stat-file represented by @path, reading lines like:
  * "key_name value" (one space separating key / value)
  * and return a pointer to a stat-structure with the key/values in the fields
@@ -253,28 +281,6 @@ void read_cpu_group(const char *path, struct condor_group *g)	{
 	g->num_procs = count_newlines(join_path(path, "cgroup.procs"));
 	g->num_tasks = count_newlines(join_path(path, "tasks"));
 }
-
-
-typedef void (*read_fn)(const char *, struct condor_group *);
-
-struct controller {
-	const char *name;
-	char *mount;
-	read_fn populate;
-} controllers [] = {
-	{ .name = "cpu",	.populate = read_cpu_group},
-	{ .name = "memory",	.populate = read_memory_group},
-};
-
-#define NUM_CONTROLLERS sizeof(controllers)/sizeof(*controllers)
-
-struct found_groups {
-	char *name;
-	struct found_groups *next;
-};
-
-#define for_each_controller(c) \
-for(struct controller *c = controllers; c < (controllers + NUM_CONTROLLERS); ++c)
 
 void init_controller_paths(const char *path, struct found_groups **ccg)
 {
