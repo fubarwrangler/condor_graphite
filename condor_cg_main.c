@@ -115,10 +115,11 @@ int main(int argc, char *argv[])
 
 	gethostname(hostname, sizeof(hostname));
 	graphite_init(conn_class);
-	if(mode == GRAPHITE)	{
-		fd = graphite_connect(dest, port);
-	} else {
-		fd = statsd_connect(dest, port);
+	if(!debug)	{
+		if(mode == GRAPHITE)
+			fd = graphite_connect(dest, port);
+		else
+			fd = statsd_connect(dest, port);
 	}
 
 	read_condor_cgroup_info(cgroup_name);
@@ -138,12 +139,13 @@ int main(int argc, char *argv[])
 			&graphite_send_uint : &statsd_send_uint
 		);
 	}
-
-	if(mode == GRAPHITE) {
-		graphite_close(fd);
-	} else {
-		statsd_close(fd);
+	if(!debug)	{
+		if(mode == GRAPHITE)
+			graphite_close(fd);
+		else
+			statsd_close(fd);
 	}
+
 	cleanup_groups();
 	return 0;
 }

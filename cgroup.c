@@ -78,7 +78,6 @@ static int groupsort(const void *a, const void *b)
 	return i - j;
 }
 
-/* Return true if no groups found */
 bool groups_empty(void)
 {
 	return (n_groups == 0);
@@ -128,12 +127,11 @@ static int count_newlines(const char *path)
 
 /**
  * Iterate through group-array without exposing underlying structure
- * Call with address of pointer to groups @g initalized to NULL, then
- * on each subsequent call where it returns True, @g points to the next group
+ * Called via the macro for_each_group() in this file's header
  *
  * Return: true = valid group next, false = out of groups
  */
-bool group_for_each(struct condor_group **g)
+bool __group_for_each(struct condor_group **g)
 {
 	static int n;
 
@@ -162,39 +160,26 @@ struct cgroup_stat {
 	char *name, *value;
 };
 
-static void _populate_memory_stat(struct cgroup_stat *s, struct condor_group *g)
+/* Iterate through stat-file represented by @path, reading lines like:
+ * "key_name value" (one space separating key / value)
+ * and return a pointer to a stat-structure with the key/values in the fields
+ *
+ * NOTE: Call multiple times until NULL is returned to finish parsing one file
+ */
+struct cgroup_stat *read_stats(const char *path)
+
 {
-	if(0 == strcmp(s->name, "total_rss"))	{
-		g->rss_used = parse_num(s->value);
-	} else if (0 == strcmp(s->name, "total_swap")) {
-		g->swap_used = parse_num(s->value);
-	} else if (0 == strcmp(s->name, "total_cache")) {
-		g->cache_used = parse_num(s->value);
+	static FILE *fp = NULL;
+	static struct cgroup_stat s;
+	static char linebuf[128] = {0};
+
+
+	if(fp == NULL)	{
+		if((fp = fopen(path, "r")) == NULL)
+			log_exit("Error opening %s", path);
 	}
-}
 
-
-static void _populate_cpu_stat(struct cgroup_stat *s, struct condor_group *g)
-{
-	if(0 == strcmp(s->name, "user"))	{
-		g->user_cpu_usage = parse_num(s->value);
-	} else if (0 == strcmp(s->name, "system")) {
-		g->sys_cpu_usage = parse_num(s->value);
-	}
-}
-
-void read_stats(const char *path, struct condor_group *g,
-		void (*pop_fn)(struct cgroup_stat *, struct condor_group *))
-
-{
-	FILE *fp = fopen(path, "r");
-	char linebuf[128] = {0};
-	struct cgroup_stat s;
-
-	if(fp == NULL)
-		log_exit("Error opening %s", path);
-
-	while(NULL != fgets(linebuf, sizeof(linebuf), fp))	{
+	if(fgets(linebuf, sizeof(linebuf), fp) != NULL)	{
 		char *p = linebuf;
 		s.name = p;
 		// Count up to first space
@@ -205,31 +190,62 @@ void read_stats(const char *path, struct condor_group *g,
 		if(*p == ' ' && *(p + 1) != '\0')	{
 			*p++ = '\0';
 			s.value = p;
-			pop_fn(&s, g);
+			return &s;
 		}
 	}
-	fclose(fp);
+
+	if(feof(fp))	{
+		fclose(fp);
+		fp = NULL;
+	} else {
+		log_exit("Error occured reading %s", path);
+	}
+	return NULL;
 }
 
+/* Read a single number from a file at @path and return it as an integer */
 uint64_t read_num(const char *path)
 {
 	FILE *fp = fopen(path, "r");
 	char buf[64];
-	if(fp == NULL) log_exit("Error opening %s", path);
+	if(fp == NULL)
+		log_exit("Error opening %s", path);
 	fgets(buf, sizeof(buf), fp);
-	if(ferror(fp)) log_exit("Error reading %s", path);
+	if(ferror(fp))
+		log_exit("Error reading %s", path);
 	fclose(fp);
 	return parse_num(buf);
 }
 
 void read_memory_group(const char *path, struct condor_group *g)	{
-	read_stats(join_path(path, "memory.stat"), g, &_populate_memory_stat);
+	struct cgroup_stat *s;
+	struct stat st;
+	while((s = read_stats(join_path(path, "memory.stat"))) != NULL)	{
+		if(0 == strcmp(s->name, "total_rss"))	{
+			g->rss_used = parse_num(s->value);
+		} else if (0 == strcmp(s->name, "total_swap")) {
+			g->swap_used = parse_num(s->value);
+		} else if (0 == strcmp(s->name, "total_cache")) {
+			g->cache_used = parse_num(s->value);
+		}
+	}
+	if(stat(path, &st) != 0)
+		log_exit("Error calling stat() on %d", path);
+	g->start_time = st.st_ctime;
 }
 
 void read_cpu_group(const char *path, struct condor_group *g)	{
 	long int hz = sysconf(_SC_CLK_TCK);
 
-	read_stats(join_path(path, "cpuacct.stat"), g, &_populate_cpu_stat);
+	struct cgroup_stat *s;
+	while((s = read_stats(join_path(path, "cpuacct.stat"))) != NULL)	{
+		if(0 == strcmp(s->name, "user"))	{
+			g->user_cpu_usage = parse_num(s->value);
+		} else if (0 == strcmp(s->name, "system")) {
+			g->sys_cpu_usage = parse_num(s->value);
+		}
+	}
+
 	/* Divide by HZ from _SC_CLK_TCK to get usage in seconds */
 	g->user_cpu_usage /= hz;
 	g->sys_cpu_usage /= hz;
@@ -269,6 +285,8 @@ void init_controller_paths(const char *path, struct found_groups **ccg)
 
 	*ccg = NULL;
 
+	// Find cgroup-labeled mounts points in /proc/mounts to fill into the
+	// struct controller .mount member
 	if(NULL == (fp = fopen("/proc/mounts", "r")))	{
 		fprintf(stderr, "Error opening /proc/mounts\n");
 		exit(EXIT_FAILURE);
@@ -277,6 +295,7 @@ void init_controller_paths(const char *path, struct found_groups **ccg)
 	while( (m = getmntent(fp)) != NULL)	{
 		if(strcmp(m->mnt_type, "cgroup") != 0)
 			continue;
+		// Find mount options with "controller"-name
 		for_each_controller(c) {
 			if(hasmntopt(m, c->name))	{
 				c->mount = xcalloc(strlen(m->mnt_dir) + strlen(path) + 2);
@@ -290,6 +309,11 @@ void init_controller_paths(const char *path, struct found_groups **ccg)
 		if(c->mount == NULL)
 			log_exit("Error reading all controller cgroups!");
 
+	// Create quick linked-list of per-slot-named cgroups by going through
+	// the first controller's subdirectory named <mount>/@path/
+	// NOTE: Assumption here is that subdirs are named the same between
+	//       multiple controllers (if a job exits between the dir-scan and
+	//       reading the data there could be a race / error...
 	struct found_groups **cgitr = ccg;
 	struct controller *c = &controllers[0];
 

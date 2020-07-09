@@ -20,11 +20,11 @@ struct condor_group {
 
 extern const char *default_cgroup_name;
 
-#define for_each_group(g) for(struct condor_group *g = NULL; group_for_each(&g);)
+#define for_each_group(g) for(struct condor_group *g = NULL; __group_for_each(&g);)
 
 void read_condor_cgroup_info(const char *cg_name);
 
-bool group_for_each(struct condor_group **g);
+bool __group_for_each(struct condor_group **g);
 bool groups_empty(void);
 void cleanup_groups(void);
 
