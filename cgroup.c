@@ -324,6 +324,8 @@ void init_controller_paths(const char *path, struct found_groups **ccg)
 	struct controller *c = &controllers[0];
 
 	dir = opendir(c->mount);
+	if(dir == NULL)
+		log_exit("Cannot open directory: %s", c->mount);
 	while(dir != NULL && (d = readdir(dir)) != NULL)	{
 		if(d->d_type == DT_DIR && d->d_name[0] != '.') {
 			*cgitr = xcalloc(sizeof(struct found_groups));

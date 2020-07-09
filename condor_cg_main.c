@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
 	const char *cgroup_name = default_cgroup_name;
 	char *port = "2003";
 	char *p;
-	int fd;
+	int fd = -1;
 	int c;
 	int conn_class = GRAPHITE_UDP;
 	enum backend mode;

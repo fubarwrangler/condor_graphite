@@ -14,7 +14,7 @@ void *xcalloc(size_t len);
 char *xstrdup(const char *s);
 
 /* Log message and exit program */
-void log_exit(const char *fmt, ...);
+void log_exit(const char *fmt, ...)  __attribute__((noreturn));
 
 /* Join strings on a path separator, returning a pointer to static storage */
 const char *join_path(const char *c1, const char *c2);
