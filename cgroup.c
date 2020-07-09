@@ -329,8 +329,8 @@ void init_controller_paths(const char *path, struct found_groups **ccg)
 	while(dir != NULL && (d = readdir(dir)) != NULL)	{
 		if(d->d_name[0] == '.')
 			continue;
-#ifndef _DIRENT_HAVE_D_TYPE
-#warning \
+#if !defined(DT_DIR) || !defined(_DIRENT_HAVE_D_TYPE)
+#warning \n\n\
 Fallback to using stat() to determine directory type, please define _BSD_SOURCE \
 SEE man 3 readdir for more details on _DIRENT_HAVE_D_TYPE
 		struct stat st;
