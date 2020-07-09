@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <assert.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <errno.h>
 
@@ -61,6 +62,23 @@ int server_connect(const char *server, const char *port, int ai_socktype)
 	return sfd;
 }
 
+
+const char* join_path(const char* c1, const char* c2)
+
+	static char buf[512];
+	sprintf(buf, "%s/%s", c1, c2);
+	return buf;
+}
+
+void log_exit(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
+    fputc('\n', stderr);
+    exit(EXIT_FAILURE);
+}
 
 
 void *xcalloc(size_t len)

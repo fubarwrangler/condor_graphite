@@ -5,8 +5,6 @@
 #include <stdbool.h>
 
 struct condor_group {
-	char name[256];		/*!< Name of cgroup under root */
-	char root_path[60];	/*!< Path where cgroup is mounted */
 	char slot_name[16];	/*!< Extracted slot name */
 	uint32_t sort_order;
 	uint32_t num_procs;
