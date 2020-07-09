@@ -327,7 +327,20 @@ void init_controller_paths(const char *path, struct found_groups **ccg)
 	if(dir == NULL)
 		log_exit("Cannot open directory: %s", c->mount);
 	while(dir != NULL && (d = readdir(dir)) != NULL)	{
-		if(d->d_type == DT_DIR && d->d_name[0] != '.') {
+		if(d->d_name[0] == '.')
+			continue;
+#ifndef _DIRENT_HAVE_D_TYPE
+#warning \
+Fallback to using stat() to determine directory type, please define _BSD_SOURCE \
+SEE man 3 readdir for more details on _DIRENT_HAVE_D_TYPE
+		struct stat st;
+		if(lstat(d->d_name, &st) != 0)
+			log_exit("Error calling lstat() on %s", d->d_name);
+		if(S_ISDIR(st.st_mode)) {
+#else
+		if(d->d_type == DT_DIR) {
+#endif
+
 			*cgitr = xcalloc(sizeof(struct found_groups));
 			(*cgitr)->next = NULL;
 			(*cgitr)->name = xstrdup(d->d_name);
