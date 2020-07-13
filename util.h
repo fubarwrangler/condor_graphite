@@ -4,6 +4,9 @@
 #include "cgroup.h"
 #include <stdbool.h>
 
+#define STREQ(a, b)	(0 == strcmp(a, b))
+#define STRNEQ(a, b)	(!STREQ(a,b))
+
 /* Utility methods to send to metrics servers over TCP/UDP with configurable
  * buffering
  */

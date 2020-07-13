@@ -1,11 +1,11 @@
+/**
+ * Code to format metrics and massage them as graphite requires
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
 #include <string.h>
-#include <time.h>
 #include <sys/socket.h>
-#include <netdb.h>
-#include <errno.h>
 #include <syslog.h>
 #include <unistd.h>
 #include <assert.h>

@@ -251,29 +251,33 @@ uint64_t read_num(const char *path)
 void read_memory_group(const char *path, struct condor_group *g)	{
 	struct cg_stat *s;
 	struct stat st;
-	while((s = read_stats(join_path(path, "memory.stat"))) != NULL)	{
-		if(0 == strcmp(s->name, "total_rss"))	{
+	const char *statpath = join_path(path, "memory.stat");
+
+	while((s = read_stats(statpath)) != NULL)	{
+		if STREQ(s->name, "total_rss")	{
 			g->rss_used = parse_num(s->value);
-		} else if (0 == strcmp(s->name, "total_swap")) {
+		} else if STREQ(s->name, "total_swap") {
 			g->swap_used = parse_num(s->value);
-		} else if (0 == strcmp(s->name, "total_cache")) {
+		} else if STREQ(s->name, "total_cache") {
 			g->cache_used = parse_num(s->value);
 		}
 	}
 	if(stat(path, &st) != 0)
 		log_exit("Error calling stat() on %d", path);
 	g->start_time = st.st_ctime;
-	g->mem_limit = read_num(join_path(path, "memory.soft_limit_in_bytes"));
+	g->mem_soft_limit = read_num(join_path(path, "memory.soft_limit_in_bytes"));
 }
 
 void read_cpu_group(const char *path, struct condor_group *g)	{
 	long int hz = sysconf(_SC_CLK_TCK);
 
 	struct cg_stat *s;
-	while((s = read_stats(join_path(path, "cpuacct.stat"))) != NULL)	{
-		if(0 == strcmp(s->name, "user"))	{
+	const char *statpath = join_path(path, "cpuacct.stat");
+
+	while((s = read_stats(statpath)) != NULL)	{
+		if STREQ(s->name, "user")	{
 			g->user_cpu_usage = parse_num(s->value);
-		} else if (0 == strcmp(s->name, "system")) {
+		} else if STREQ(s->name, "system")	{
 			g->sys_cpu_usage = parse_num(s->value);
 		}
 	}
@@ -303,7 +307,7 @@ void init_controller_paths(const char *path, struct found_groups **ccg)
 	}
 
 	while( (m = getmntent(fp)) != NULL)	{
-		if(strcmp(m->mnt_type, "cgroup") != 0)
+		if STRNEQ(m->mnt_type, "cgroup")
 			continue;
 		// Find mount options with "controller"-name
 		for_each_controller(c) {

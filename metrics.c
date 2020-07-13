@@ -1,3 +1,8 @@
+/**
+ * Functions to send the metrics over the network (using a buffer for TCP) and
+ * to turn the cgroup structure into actual metric strings
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,7 +17,7 @@
 #include "cgroup.h"
 
 
-#define BUFSIZE 1408
+#define BUFSIZE 4096
 
 
 int debug = 0;
@@ -136,8 +141,8 @@ void send_group_metrics(struct condor_group *g, const char *hostname,
 	snprintf(metric, b_len + 32, "%s.swap", base);
 	(*send_fn)(fd, metric, g->swap_used);
 
-	snprintf(metric, b_len + 32, "%s.memlimit", base);
-	(*send_fn)(fd, metric, g->mem_limit);
+	snprintf(metric, b_len + 32, "%s.softmemlimit", base);
+	(*send_fn)(fd, metric, g->mem_soft_limit);
 
 	free(base);
 	free(metric);

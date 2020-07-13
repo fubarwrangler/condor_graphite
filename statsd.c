@@ -1,15 +1,13 @@
+/**
+ * Functions to format a metric as statsd can understand
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
 #include <string.h>
-#include <time.h>
 #include <sys/socket.h>
-#include <netdb.h>
-#include <errno.h>
-#include <syslog.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <assert.h>
 
 #include "graphite.h"
 

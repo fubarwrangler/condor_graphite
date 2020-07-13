@@ -15,7 +15,7 @@ struct condor_group {
 	uint64_t rss_used;
 	uint64_t swap_used;
 	uint64_t cache_used;
-	uint64_t mem_limit;
+	uint64_t mem_soft_limit;
 	time_t start_time;
 };
 

@@ -66,7 +66,7 @@ int server_connect(const char *server, const char *port, int ai_socktype)
 const char* join_path(const char *c1, const char *c2)
 {
 	static char buf[512];
-	sprintf(buf, "%s/%s", c1, c2);
+	snprintf(buf, sizeof(buf), "%s/%s", c1, c2);
 	return buf;
 }
 
