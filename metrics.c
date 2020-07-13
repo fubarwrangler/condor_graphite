@@ -136,6 +136,9 @@ void send_group_metrics(struct condor_group *g, const char *hostname,
 	snprintf(metric, b_len + 32, "%s.swap", base);
 	(*send_fn)(fd, metric, g->swap_used);
 
+	snprintf(metric, b_len + 32, "%s.memlimit", base);
+	(*send_fn)(fd, metric, g->mem_limit);
+
 	free(base);
 	free(metric);
 }

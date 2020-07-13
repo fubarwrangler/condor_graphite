@@ -31,7 +31,7 @@ struct found_groups {
 	struct found_groups *next;
 };
 
-struct cgroup_stat {
+struct cg_stat {
 	char *name, *value;
 };
 
@@ -42,9 +42,9 @@ void read_cpu_group(const char *path, struct condor_group *g);
 void read_memory_group(const char *path, struct condor_group *g);
 
 struct controller {
+	char *mount;		/* to be filled out when parsing cgroup tree */
 	const char *name;
-	char *mount;
-	read_fn populate;
+	read_fn populate;	/* these two below ... */
 } controllers [] = {
 	{ .name = "cpu",	.populate = read_cpu_group},
 	{ .name = "memory",	.populate = read_memory_group},
@@ -87,7 +87,10 @@ static void extract_slot_name(char *slot_name, const char *cgroup_name)
 	*(slot_name + i + 1) = '\0';
 }
 
-
+/* Transform a slot-id string into an sortable integer, if slots are
+ * partitionable in condor, take the ids N_M and pack them into the upper and
+ * lower 2 bytes of a 32-bit int NNMM
+ */
 static uint32_t get_slot_number(const char *slot)
 {
 	uint32_t a, b;
@@ -194,11 +197,11 @@ void cleanup_groups()
  *
  * NOTE: Call multiple times until NULL is returned to finish parsing one file
  */
-struct cgroup_stat *read_stats(const char *path)
+struct cg_stat *read_stats(const char *path)
 
 {
 	static FILE *fp = NULL;
-	static struct cgroup_stat s;
+	static struct cg_stat s;
 	static char linebuf[128] = {0};
 
 
@@ -246,7 +249,7 @@ uint64_t read_num(const char *path)
 }
 
 void read_memory_group(const char *path, struct condor_group *g)	{
-	struct cgroup_stat *s;
+	struct cg_stat *s;
 	struct stat st;
 	while((s = read_stats(join_path(path, "memory.stat"))) != NULL)	{
 		if(0 == strcmp(s->name, "total_rss"))	{
@@ -260,12 +263,13 @@ void read_memory_group(const char *path, struct condor_group *g)	{
 	if(stat(path, &st) != 0)
 		log_exit("Error calling stat() on %d", path);
 	g->start_time = st.st_ctime;
+	g->mem_limit = read_num(join_path(path, "memory.soft_limit_in_bytes"));
 }
 
 void read_cpu_group(const char *path, struct condor_group *g)	{
 	long int hz = sysconf(_SC_CLK_TCK);
 
-	struct cgroup_stat *s;
+	struct cg_stat *s;
 	while((s = read_stats(join_path(path, "cpuacct.stat"))) != NULL)	{
 		if(0 == strcmp(s->name, "user"))	{
 			g->user_cpu_usage = parse_num(s->value);

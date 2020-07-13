@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 struct condor_group {
-	char slot_name[16];	/*!< Extracted slot name */
+	char slot_name[12];	/*!< Extracted slot name */
 	uint32_t sort_order;
 	uint32_t num_procs;
 	uint32_t num_tasks;
@@ -15,6 +15,7 @@ struct condor_group {
 	uint64_t rss_used;
 	uint64_t swap_used;
 	uint64_t cache_used;
+	uint64_t mem_limit;
 	time_t start_time;
 };
 
